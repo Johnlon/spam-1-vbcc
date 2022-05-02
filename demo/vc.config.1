@@ -1,0 +1,14 @@
+-cc=vbcc6502 -quiet -cbmascii -mainargs -avoid-bank-switch %s -o= %s %s -O=%ld
+-ccv=vbcc6502 -cbmascii -mainargs -avoid-bank-switch %s -o= %s %s -O=%ld
+-unsigned-char
+-as=vasm6502_oldstyle -quiet -nowarn=62 -opt-branch -Fvobj %s -o %s 
+-asv=vasm6502_oldstyle -nowarn=62 -Fvobj -opt-branch %s -o %s
+-rm=rm %s
+-rmv=rm %s
+-cpr=vcpr6502 -quiet %s %s
+-cprv=vcpr6502 %s %s
+-ld=vlink -b bbc -Cvbcc %s %s -o %s 
+-ldv=vlink -b bbc -Cvbcc %s %s  -o %s -Mmapfile
+-l2=vlink -b bbc -Cvbcc %s %s -o %s
+-l2v=vlink -b bbc -Cvbcc %s %s  -o %s -Mmapfile
+

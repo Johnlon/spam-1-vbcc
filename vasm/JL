@@ -1,0 +1,1 @@
+make -f Makefile CPU=6502 SYNTAX=oldstyle
