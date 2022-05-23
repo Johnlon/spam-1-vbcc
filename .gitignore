@@ -1,0 +1,13 @@
+**/*.o
+**/*un~
+**/.*un~
+**/*.swp
+**/*.swo
+**/*.old
+
+.idea
+.settings
+.cproject
+.project
+.vs
+.vscode

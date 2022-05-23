@@ -1,0 +1,15 @@
+function main
+	move long #L48815->M0+0(FP)(myLong) size=4
+	move long #L65278->M0+4(FP)(yourLong) size=4
+	compare long M0+0(FP)(myLong),M0+4(FP)(yourLong)
+	bne L4
+L3
+	move long #L170->M0+0(FP)(myLong) size=4
+	bra L5
+L4
+	allocreg gpr3
+	mul long M0+4(FP)(yourLong),#L187->M0+0(FP)(myLong)
+	freereg gpr3
+L5
+	set-return int #I99
+L1

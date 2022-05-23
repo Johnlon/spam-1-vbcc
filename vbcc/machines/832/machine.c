@@ -1475,6 +1475,8 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 	if(!p)
 		printf("(gen_code called with null IC list?)\n");
 
+	// JL REGSA = LIST OF REG IN USE AT START OF FN - IE ALREADY IN USE 
+	// JL REGS  = LIST OF REG IN USE DURING FN - SO INIT FROM REGSA
 	for (c = 1; c <= MAXR; c++)
 		regs[c] = regsa[c];
 	pushed = 0;
@@ -1662,6 +1664,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 
 		c = p->code;
 
+		// treat pointer arith as regulate arith
 		if (c == SUBPFP)
 			c = SUB;
 		if (c == ADDI2P)
@@ -1673,7 +1676,13 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 //		if(p->prev && matchobj(f,&p->q1,&p->prev->q1))
 //			emit(f, "// Matching objs found\n", p->prev->code,&p->prev->q1.v);
 
+		/*Convert one type to another. q1->z.
+		z is always of the type typf, q1 of type typf2.
+		Conversions between floating point and pointers do not occur, 
+		neither do conversions to and from structs, unions, arrays or void.*/
 		if (c == CONVERT) {
+emit(f, "NOT HANDLED CONVERT\n"); 
+
 			if(DBGMSG)
 				emit(f, "\t\t\t\t\t\t//FIXME convert\n");
 			if (ISFLOAT(q1typ(p)) || ISFLOAT(ztyp(p))) {
@@ -1787,6 +1796,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 		}
 
 		if (c == KOMPLEMENT) {
+emit(f, "NOT HANDLED KOMPLEMENT\n"); 
 			if(DBGMSG)
 				emit(f, "\t\t\t\t\t\t//comp\n");
 			emit_objtoreg(f, &p->q1, q1typ(p), zreg);
@@ -1798,6 +1808,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 		}
 		// May not need to actually load the register here - certainly check before emitting code.
 		if (c == SETRETURN) {
+emit(f, "NOT HANDLED SETRETURN\n"); 
 			if(DBGMSG)
 				emit(f, "\t\t\t\t\t\t//setreturn\n");
 			emit_objtoreg(f, &p->q1, q1typ(p), zreg);
@@ -1806,6 +1817,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 		}
 		// Investigate - May not be needed for register mode?
 		if (c == GETRETURN) {
+emit(f, "NOT HANDLED GETRETURN\n"); 
 			if(DBGMSG)
 				emit(f, "\t\t\t\t\t\t// (getreturn)");
 			if (p->q1.reg) {
@@ -1820,6 +1832,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 		}
 		// OK - figure out what the bvunite stuff is all about.
 		if (c == CALL) {
+emit(f, "NOT HANDLED CALL\n"); 
 			int reg;
 			if(DBGMSG)
 				emit(f, "\t\t\t\t\t\t//call\n");
@@ -1916,11 +1929,13 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 		}
 
 		if ((c == ASSIGN || c == PUSH) && t == 0) {
+emit(f, "NOT HANDLED ASSIGN/PUSH\n"); 
 			printf("Bad type for assign / push\n");
 			ierror(0);
 		}
 		// Basically OK.
 		if (c == PUSH) {
+emit(f, "NOT HANDLED ASSIGN/PUSH\n"); 
 			int matchreg;
 			if(DBGMSG)
 				emit(f, "\t\t\t\t\t\t// (a/p push)\n");
@@ -1956,6 +1971,7 @@ void gen_code(FILE * f, struct IC *p, struct Var *v, zmax offset)
 		}
 
 		if (c == ASSIGN) {
+emit(f, "NOT HANDLED ASSIGN\n"); 
 			if(DBGMSG)
 				emit(f, "\t\t\t\t\t\t// (a/p assign)\n");
 			if (((t & NQ) == STRUCT) || ((t & NQ) == UNION) || ((t & NQ) == ARRAY)

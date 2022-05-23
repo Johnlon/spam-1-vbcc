@@ -1,0 +1,14 @@
+	.text
+	.global	_main
+_main:
+	mov.i	gpr1,1
+	mov.i	0(gpr0),gpr1
+	mov.i	gpr1,2
+	mov.i	4(gpr0),gpr1
+	mov.i	gpr1,0(gpr0)
+	add.i	gpr1,4(gpr0)
+	mov.i	8(gpr0),gpr1
+	mov.i	gpr3,0
+l1:
+	rts
+# stacksize=0+??

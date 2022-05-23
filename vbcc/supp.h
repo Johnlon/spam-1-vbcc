@@ -255,7 +255,7 @@ typedef struct obj{
 #define VAR 2       /*  The object is a variable (stored in v).             */
 #define SCRATCH 8   /*  The object is a temporary.                          */
 #define STACK 16    /*  obsolete                                            */
-#define DREFOBJ 32  /*  The object must be dereferenced.                    */
+#define DREFOBJ 32  /*  The object must be dereferenced. The object is a constant. Its value is in the corresponding (to typf or typf2) member of val.  */
 #define REG 64      /*  The object is contained in a hardware register.     */
 #define VARADR 128  /*  The object is the address of a static variable.     */
 #define DONTREGISTERIZE 256 /*  Do not put this object into a register.     */
@@ -490,6 +490,7 @@ typedef struct IC{
 #define BGE 73
 #define BLE 74
 #define BGT 75
+// branch always
 #define BRA 76
 #define COMPARE 77
 #define PUSH 78
@@ -572,6 +573,11 @@ extern int g_flags[MAXGF];
 extern char *g_flags_name[MAXGF];
 extern union ppi g_flags_val[MAXGF];
 extern zmax max_offset;
+/*
+When vlas is non-zero, the current function uses variable-length arrays. The backend may take necessary steps to support this. For example, if
+local variables are usually addressed via stackpointer, switching to a separate
+framepointer may be necessary.
+*/
 extern int function_calls,vlas;
 extern int coloring;
 extern int dmalloc;

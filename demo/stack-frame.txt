@@ -1,0 +1,106 @@
+See also 
+Good doco here .. https://people.cs.rutgers.edu/~pxk/419/notes/frames.html
+And https://en.wikipedia.org/wiki/X86_calling_conventions
+And https://cs61.seas.harvard.edu/site/2018/Asm2/
+And http://www.cs.cornell.edu/courses/cs3410/2012sp/lecture/14-calling-i.pdf
+
+
+# foo starts 
+- prologue : the FP is set to current stack
+- 2 args a & b to method are pushed prior to call = 8 bytes
+- return address is pushed to the stack = 4 bytes
+- call occurs (call pushes the ret addr and jumps to bar)
+# bar starts
+- prologue: the FP is set to current stack 
+#so now the fn args are at FP+8 and FP+12 and the return address is at FP+4
+- the stack is adjusted by 16 to make space for local vars - on x86 this is in increments of 16
+- edx is loaded from FP + 8
+- eax is loaded from FP + 12
+- eax = eax + edx
+- y is first (only) local var so eax additional result is written to FP-4
+- y is returned by leaving it's value in eax
+- stack is reverted to what fp points at which undoes the stack frame
+- stack frame is reverted to whatever it was in caller 
+# control returns to caller foo
+- foo moves the stack by 8 rather than popping the two 4 byte args it had pushed because it's faster
+- the return value is eax is copied to the local var 'f'
+
+!! So when inside fn, it's params will always be FP+ and local vars will always be FP-
+
+eg   caller args / caller return address / [FP POINTS HERE] callee saved FP / called fn local vars / [SP POINTS HERE]
+
+OR if the callee is supporting saving reg's it modifies then ...
+eg   caller args / caller return address / [FP POINTS HERE] callee saved FP / callee saved regs / callee fn local vars / [SP POINTS HERE]
+
+
+bar:
+        push    ebp
+        mov     ebp, esp
+        sub     esp, 16
+        mov     edx, DWORD PTR 8[ebp]
+        mov     eax, DWORD PTR 12[ebp]
+        add     eax, edx
+        mov     DWORD PTR -4[ebp], eax    ; puts return value in stack - this is "nop" if the return is removed
+        mov     eax, DWORD PTR -4[ebp]    ; 'return y' - leave return value in eax
+        mov     esp, ebp ; gcc used "leave" but I've swapped for equiv codes ...
+      	pop     ebp	
+        ret
+foo:
+        push    ebp
+        mov     ebp, esp
+        sub     esp, 16    ; make space for local var 'f' - f is first var so it will be at [ebp-4]
+        push    222
+        push    111
+        call    bar
+        add     esp, 8
+        mov     DWORD PTR -4[ebp], eax    ; return value is in eax so copy it into local var 'f'
+        nop
+        leave
+        ret
+main:
+        push    ebp
+        mov     ebp, esp
+        call    foo
+        nop
+        pop     ebp
+        ret
+        mov     eax, DWORD PTR [esp]
+        ret
+
+
+
+void bar(int a, int b)
+{
+    int y;
+
+    y = a+b;
+    return y;
+}
+
+void foo(void) {
+    bar(111,222);
+}
+
+void main(void) {
+    foo();
+}
+
+
+# create asm above
+gcc -S foo.c -m32 -masm=intel
+# remove linker hints and other irrelevant stuff
+cat foo.s | egrep -v '^\s*\.' | grep -v thunk| grep -v OFFSET  > foo1.s
+
+
+
+
+Good doco here .. https://people.cs.rutgers.edu/~pxk/419/notes/frames.html
+Fixed vs Moving. GCC generates code that moves the SP after function entry to leave space for local vars.
+However, an alternative would have been to not move the SP preemptively and instead move it incrementally for each local var.
+I think this is what they mean by fixed vs moving SP.
+If stack is positioned leaving space for all local vars then it doesn't need to move as those vars are encountered (wound and unwound).
+Local vars are essentially statically located relative to the FP.
+
+The stack frame is a bit more complex if registers are saved on the stack before the call.
+
+eg   caller args / caller return address / [FP POINTS HERE] callee saved FP / callee saved regs / callee fn local vars / [SP POINTS HERE]

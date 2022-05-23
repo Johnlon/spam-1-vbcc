@@ -6,6 +6,7 @@ LDFLAGS = -lm
 # native version; used to create dtgen
 NCC = $(CC)
 NLDFLAGS = $(LDFLAGS)
+TARGET=g
 
 all: bin/vc bin/vprof bin/vbcc$(TARGET) #bin/vcpp
 

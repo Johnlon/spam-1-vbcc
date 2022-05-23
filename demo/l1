@@ -1,0 +1,958 @@
+ASM: 	.text
+ASM: 	.global	_main
+ASM: _main:
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = allocreg(65)
+ASM: 	DUMP z= <>
+ASM: 	DUMP q1= < ISREG:gpr8>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = allocreg(65)
+ASM: 	DUMP z= <>
+ASM: 	DUMP q1= < ISREG:gpr7>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = allocreg(65)
+ASM: 	DUMP z= <>
+ASM: 	DUMP q1= < ISREG:gpr6>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = move(2)
+ASM: 	DUMP z= < VAR AUTO:0(gpr0)>
+ASM: 	DUMP q1= < K:11>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: >> 2
+ASM: ; ASSIGN/PUSH
+ASM: ; ASSIGN uc gpr0
+ASM: 	[:gpr1+0] = #0b	
+ASM: 	mov.c	0(gpr0),gpr1
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = move(2)
+ASM: 	DUMP z= < VAR AUTO:1(gpr0)>
+ASM: 	DUMP q1= < K:11>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: >> 2
+ASM: ; ASSIGN/PUSH
+ASM: ; ASSIGN uc gpr0
+ASM: 	[:gpr1+0] = #0b	
+ASM: 	mov.c	1(gpr0),gpr1
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = move(2)
+ASM: 	DUMP z= < VAR AUTO:4(gpr0)>
+ASM: 	DUMP q1= < K:99>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: >> 2
+ASM: ; ASSIGN/PUSH
+ASM: ; ASSIGN i gpr0
+ASM: 	[:gpr1+0] = #63	
+ASM: 	[:gpr1+1] = #00	
+ASM: 	[:gpr1+2] = #00	
+ASM: 	[:gpr1+3] = #00	
+ASM: 	mov.i	4(gpr0),gpr1
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = move(2)
+ASM: 	DUMP z= < VAR AUTO:8(gpr0)>
+ASM: 	DUMP q1= < K:333>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: >> 2
+ASM: ; ASSIGN/PUSH
+ASM: ; ASSIGN l gpr0
+ASM: 	[:gpr1+0] = #4d	
+ASM: 	[:gpr1+1] = #01	
+ASM: 	[:gpr1+2] = #00	
+ASM: 	[:gpr1+3] = #00	
+ASM: 	mov.l	8(gpr0),gpr1
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = move(2)
+ASM: 	DUMP z= < VAR AUTO:12(gpr0)>
+ASM: 	DUMP q1= < K:333>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: >> 2
+ASM: ; ASSIGN/PUSH
+ASM: ; ASSIGN ul gpr0
+ASM: 	[:gpr1+0] = #4d	
+ASM: 	[:gpr1+1] = #01	
+ASM: 	[:gpr1+2] = #00	
+ASM: 	[:gpr1+3] = #00	
+ASM: 	mov.l	12(gpr0),gpr1
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = move(2)
+ASM: 	DUMP z= < VAR AUTO:16(gpr0)>
+ASM: 	DUMP q1= < K:11>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: >> 2
+ASM: ; ASSIGN/PUSH
+ASM: ; ASSIGN uc gpr0
+ASM: 	[:gpr1+0] = #0b	
+ASM: 	mov.c	16(gpr0),gpr1
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = allocreg(65)
+ASM: 	DUMP z= <>
+ASM: 	DUMP q1= < ISREG:gpr3>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = convert(50)
+ASM: 	DUMP z= < ISREG:gpr3>
+ASM: 	DUMP q1= < VAR AUTO:16(gpr0)>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: CONVERT
+ASM: 	zext.uc	gpr3
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = add(27)
+ASM: 	DUMP z= < ISREG:gpr3>
+ASM: 	DUMP q1= < ISREG:gpr3>
+ASM: 	DUMP q2= < K:11>
+ASM: ------
+ASM: OR AND SHIFT MOD 
+ASM: 	add.i	gpr3,gpr3,11
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = convert(50)
+ASM: 	DUMP z= < VAR AUTO:17(gpr0)>
+ASM: 	DUMP q1= < ISREG:gpr3>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: >> 2
+ASM: CONVERT
+ASM: 	mov.c	17(gpr0),gpr1
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = freereg(66)
+ASM: 	DUMP z= <>
+ASM: 	DUMP q1= < ISREG:gpr3>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = allocreg(65)
+ASM: 	DUMP z= <>
+ASM: 	DUMP q1= < ISREG:gpr3>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = convert(50)
+ASM: 	DUMP z= < ISREG:gpr3>
+ASM: 	DUMP q1= < VAR AUTO:17(gpr0)>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: CONVERT
+ASM: 	zext.uc	gpr3
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = add(27)
+ASM: 	DUMP z= < ISREG:gpr3>
+ASM: 	DUMP q1= < ISREG:gpr3>
+ASM: 	DUMP q2= < K:11>
+ASM: ------
+ASM: OR AND SHIFT MOD 
+ASM: 	add.i	gpr3,gpr3,11
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = convert(50)
+ASM: 	DUMP z= < ISREG:gpr8 VAR AUTO:18(gpr0)>
+ASM: 	DUMP q1= < ISREG:gpr3>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: CONVERT
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = freereg(66)
+ASM: 	DUMP z= <>
+ASM: 	DUMP q1= < ISREG:gpr3>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = allocreg(65)
+ASM: 	DUMP z= <>
+ASM: 	DUMP q1= < ISREG:gpr3>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = convert(50)
+ASM: 	DUMP z= < ISREG:gpr3>
+ASM: 	DUMP q1= < ISREG:gpr8 VAR AUTO:18(gpr0)>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: CONVERT
+ASM: 	zext.uc	gpr3
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = add(27)
+ASM: 	DUMP z= < ISREG:gpr3>
+ASM: 	DUMP q1= < ISREG:gpr3>
+ASM: 	DUMP q2= < K:11>
+ASM: ------
+ASM: OR AND SHIFT MOD 
+ASM: 	add.i	gpr3,gpr3,11
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = convert(50)
+ASM: 	DUMP z= < ISREG:gpr7 VAR AUTO:19(gpr0)>
+ASM: 	DUMP q1= < ISREG:gpr3>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: CONVERT
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = freereg(66)
+ASM: 	DUMP z= <>
+ASM: 	DUMP q1= < ISREG:gpr3>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = allocreg(65)
+ASM: 	DUMP z= <>
+ASM: 	DUMP q1= < ISREG:gpr3>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = convert(50)
+ASM: 	DUMP z= < ISREG:gpr3>
+ASM: 	DUMP q1= < ISREG:gpr7 VAR AUTO:19(gpr0)>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: CONVERT
+ASM: 	zext.uc	gpr3
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = add(27)
+ASM: 	DUMP z= < ISREG:gpr3>
+ASM: 	DUMP q1= < ISREG:gpr3>
+ASM: 	DUMP q2= < K:11>
+ASM: ------
+ASM: OR AND SHIFT MOD 
+ASM: 	add.i	gpr3,gpr3,11
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = convert(50)
+ASM: 	DUMP z= < VAR AUTO:20(gpr0)>
+ASM: 	DUMP q1= < ISREG:gpr3>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: >> 2
+ASM: CONVERT
+ASM: 	mov.c	20(gpr0),gpr1
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = freereg(66)
+ASM: 	DUMP z= <>
+ASM: 	DUMP q1= < ISREG:gpr3>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = allocreg(65)
+ASM: 	DUMP z= <>
+ASM: 	DUMP q1= < ISREG:gpr3>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = convert(50)
+ASM: 	DUMP z= < ISREG:gpr3>
+ASM: 	DUMP q1= < VAR AUTO:20(gpr0)>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: CONVERT
+ASM: 	zext.uc	gpr3
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = add(27)
+ASM: 	DUMP z= < ISREG:gpr3>
+ASM: 	DUMP q1= < ISREG:gpr3>
+ASM: 	DUMP q2= < K:11>
+ASM: ------
+ASM: OR AND SHIFT MOD 
+ASM: 	add.i	gpr3,gpr3,11
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = convert(50)
+ASM: 	DUMP z= < VAR AUTO:21(gpr0)>
+ASM: 	DUMP q1= < ISREG:gpr3>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: >> 2
+ASM: CONVERT
+ASM: 	mov.c	21(gpr0),gpr1
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = freereg(66)
+ASM: 	DUMP z= <>
+ASM: 	DUMP q1= < ISREG:gpr3>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = move(2)
+ASM: 	DUMP z= < VAR AUTO:24(gpr0)>
+ASM: 	DUMP q1= < K:22>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: >> 2
+ASM: ; ASSIGN/PUSH
+ASM: ; ASSIGN p gpr0
+ASM: 	NOT HANDLED FOR mov.p	gpr1,	mov.p	gpr1,22
+ASM: 	mov.p	24(gpr0),gpr1
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = move(2)
+ASM: 	DUMP z= < VAR STATIC:l3>
+ASM: 	DUMP q1= < K:10>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: >> 2
+ASM: ; ASSIGN/PUSH
+ASM: ; ASSIGN p gpr0
+ASM: 	NOT HANDLED FOR mov.p	gpr1,	mov.p	gpr1,10
+ASM: 	mov.p	l3,gpr1
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = move(2)
+ASM: 	DUMP z= < VAR STATIC:l3>
+ASM: 	DUMP q1= < VAR EXTERN:l0>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: >> 2
+ASM: ; ASSIGN/PUSH
+ASM: ; ASSIGN p gpr0
+ASM: 	NOT HANDLED FOR mov.p	gpr1,	mov.p	gpr1,_extP
+ASM: 	mov.p	l3,gpr1
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = allocreg(65)
+ASM: 	DUMP z= <>
+ASM: 	DUMP q1= < ISREG:gpr3>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = convert(50)
+ASM: 	DUMP z= < ISREG:gpr3>
+ASM: 	DUMP q1= < VAR AUTO:0(gpr0)>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: CONVERT
+ASM: 	zext.uc	gpr3
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = compare(77)
+ASM: 	DUMP z= <>
+ASM: 	DUMP q1= < ISREG:gpr3>
+ASM: 	DUMP q2= < VAR AUTO:8(gpr0)>
+ASM: ------
+ASM: >> 2
+ASM: ; COMPARE START ======================================================
+ASM: 	ORIGINAL ASM: 		cmp.l	gpr3,8(gpr0)
+OBJ DUMP: 	compare long gpr3[S],Msss0+8(FP)(myLong)
+ @@q1 gpr3[S]
+ @@q2 Msss0+8(FP)(myLong)
+q1 ISREG (gpr3)
+q2 ISVAR|DREFOBJ (noreg)
+ASM: 	; BRANCH-TYPE-WILL-BE beq
+ASM: 	REGA=[:gpr3+3]
+ASM: 	NOOP = REGA A_MINUS_B_SIGNEDMAG [:B+3] _S
+ASM: 	REGA=[:gpr3+2]
+ASM: 	NOOP = REGA A_MINUS_B           [:B+2] _EQ_S
+ASM: 	REGA=[:gpr3+1]
+ASM: 	NOOP = REGA A_MINUS_B           [:B+1] _EQ_S
+ASM: 	REGA=[:gpr3+0]
+ASM: 	NOOP = REGA A_MINUS_B           [:B+0] _EQ_S
+ASM: 	; aggregate flags into register
+ASM: 	REGA=0
+ASM: 	REGA = REGA A_OR_B 1 _LT
+ASM: 	REGA = REGA A_OR_B 2 _GT
+ASM: 	REGA = REGA A_OR_B 4 _NE
+ASM: 	REGA = REGA A_OR_B 8 _EQ
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = freereg(66)
+ASM: 	DUMP z= <>
+ASM: 	DUMP q1= < ISREG:gpr3>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = beq(70)
+ASM: 	DUMP z= <>
+ASM: 	DUMP q1= <>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: ; BRANCH BLOCK eq
+ASM: 	PCHI = <:l4
+ASM: 	PCLO = >:l4 _EQ
+ASM: ; BRANCH TO LABEL l4
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = label(69)
+ASM: 	DUMP z= <>
+ASM: 	DUMP q1= <>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: l6:
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = compare(77)
+ASM: 	DUMP z= <>
+ASM: 	DUMP q1= < VAR AUTO:8(gpr0)>
+ASM: 	DUMP q2= < K:22>
+ASM: ------
+ASM: >> 2
+ASM: ; COMPARE START ======================================================
+ASM: 	ORIGINAL ASM: 		cmp.l	8(gpr0),22
+OBJ DUMP: 	compare long Msss0+8(FP)(myLong),#L22
+ @@q1 Msss0+8(FP)(myLong)
+ @@q2 #
+q2 ISCONST (noreg)
+ONLY handliong q1 as reg
+ASM: 	; BRANCH-TYPE-WILL-BE bne
+ASM: 	REGA=[:noreg+3]
+ASM: 	NOOP = REGA A_MINUS_B_SIGNEDMAG [:B+3] _S
+ASM: 	REGA=[:noreg+2]
+ASM: 	NOOP = REGA A_MINUS_B           [:B+2] _EQ_S
+ASM: 	REGA=[:noreg+1]
+ASM: 	NOOP = REGA A_MINUS_B           [:B+1] _EQ_S
+ASM: 	REGA=[:noreg+0]
+ASM: 	NOOP = REGA A_MINUS_B           [:B+0] _EQ_S
+ASM: 	; aggregate flags into register
+ASM: 	REGA=0
+ASM: 	REGA = REGA A_OR_B 1 _LT
+ASM: 	REGA = REGA A_OR_B 2 _GT
+ASM: 	REGA = REGA A_OR_B 4 _NE
+ASM: 	REGA = REGA A_OR_B 8 _EQ
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = bne(71)
+ASM: 	DUMP z= <>
+ASM: 	DUMP q1= <>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: ; BRANCH BLOCK ne
+ASM: 	PCHI = <:l5
+ASM: 	PCLO = >:l5 _NE
+ASM: ; BRANCH TO LABEL l5
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = label(69)
+ASM: 	DUMP z= <>
+ASM: 	DUMP q1= <>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: l4:
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = move(2)
+ASM: 	DUMP z= < VAR AUTO:8(gpr0)>
+ASM: 	DUMP q1= < K:170>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: >> 2
+ASM: ; ASSIGN/PUSH
+ASM: ; ASSIGN l gpr0
+ASM: 	[:gpr1+0] = #aa	
+ASM: 	[:gpr1+1] = #00	
+ASM: 	[:gpr1+2] = #00	
+ASM: 	[:gpr1+3] = #00	
+ASM: 	mov.l	8(gpr0),gpr1
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = move(2)
+ASM: 	DUMP z= < VAR AUTO:16(gpr0)>
+ASM: 	DUMP q1= < K:21>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: >> 2
+ASM: ; ASSIGN/PUSH
+ASM: ; ASSIGN uc gpr0
+ASM: 	[:gpr1+0] = #15	
+ASM: 	mov.c	16(gpr0),gpr1
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = move(2)
+ASM: 	DUMP z= < VAR AUTO:17(gpr0)>
+ASM: 	DUMP q1= < K:21>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: >> 2
+ASM: ; ASSIGN/PUSH
+ASM: ; ASSIGN uc gpr0
+ASM: 	[:gpr1+0] = #15	
+ASM: 	mov.c	17(gpr0),gpr1
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = move(2)
+ASM: 	DUMP z= < ISREG:gpr8 VAR AUTO:18(gpr0)>
+ASM: 	DUMP q1= < K:21>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: ; ASSIGN/PUSH
+ASM: ; ASSIGN uc gpr0
+ASM: 	[:gpr8+0] = #15	
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = move(2)
+ASM: 	DUMP z= < ISREG:gpr7 VAR AUTO:19(gpr0)>
+ASM: 	DUMP q1= < K:21>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: ; ASSIGN/PUSH
+ASM: ; ASSIGN uc gpr0
+ASM: 	[:gpr7+0] = #15	
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = label(69)
+ASM: 	DUMP z= <>
+ASM: 	DUMP q1= <>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: l5:
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = allocreg(65)
+ASM: 	DUMP z= <>
+ASM: 	DUMP q1= < ISREG:gpr3>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = convert(50)
+ASM: 	DUMP z= < ISREG:gpr3>
+ASM: 	DUMP q1= < ISREG:gpr8 VAR AUTO:18(gpr0)>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: CONVERT
+ASM: 	zext.uc	gpr3
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = add(27)
+ASM: 	DUMP z= < ISREG:gpr3>
+ASM: 	DUMP q1= < ISREG:gpr3>
+ASM: 	DUMP q2= < K:11>
+ASM: ------
+ASM: OR AND SHIFT MOD 
+ASM: 	add.i	gpr3,gpr3,11
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = convert(50)
+ASM: 	DUMP z= < ISREG:gpr7 VAR AUTO:19(gpr0)>
+ASM: 	DUMP q1= < ISREG:gpr3>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: CONVERT
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = freereg(66)
+ASM: 	DUMP z= <>
+ASM: 	DUMP q1= < ISREG:gpr3>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = allocreg(65)
+ASM: 	DUMP z= <>
+ASM: 	DUMP q1= < ISREG:gpr3>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = convert(50)
+ASM: 	DUMP z= < ISREG:gpr3>
+ASM: 	DUMP q1= < ISREG:gpr7 VAR AUTO:19(gpr0)>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: CONVERT
+ASM: 	zext.uc	gpr3
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = add(27)
+ASM: 	DUMP z= < ISREG:gpr3>
+ASM: 	DUMP q1= < ISREG:gpr3>
+ASM: 	DUMP q2= < K:11>
+ASM: ------
+ASM: OR AND SHIFT MOD 
+ASM: 	add.i	gpr3,gpr3,11
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = convert(50)
+ASM: 	DUMP z= < VAR AUTO:20(gpr0)>
+ASM: 	DUMP q1= < ISREG:gpr3>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: >> 2
+ASM: CONVERT
+ASM: 	mov.c	20(gpr0),gpr1
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = freereg(66)
+ASM: 	DUMP z= <>
+ASM: 	DUMP q1= < ISREG:gpr3>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = allocreg(65)
+ASM: 	DUMP z= <>
+ASM: 	DUMP q1= < ISREG:gpr3>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = convert(50)
+ASM: 	DUMP z= < ISREG:gpr3>
+ASM: 	DUMP q1= < VAR AUTO:20(gpr0)>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: CONVERT
+ASM: 	zext.uc	gpr3
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = add(27)
+ASM: 	DUMP z= < ISREG:gpr3>
+ASM: 	DUMP q1= < ISREG:gpr3>
+ASM: 	DUMP q2= < K:11>
+ASM: ------
+ASM: OR AND SHIFT MOD 
+ASM: 	add.i	gpr3,gpr3,11
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = convert(50)
+ASM: 	DUMP z= < VAR AUTO:21(gpr0)>
+ASM: 	DUMP q1= < ISREG:gpr3>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: >> 2
+ASM: CONVERT
+ASM: 	mov.c	21(gpr0),gpr1
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = freereg(66)
+ASM: 	DUMP z= <>
+ASM: 	DUMP q1= < ISREG:gpr3>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = allocreg(65)
+ASM: 	DUMP z= <>
+ASM: 	DUMP q1= < ISREG:gpr3>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = convert(50)
+ASM: 	DUMP z= < ISREG:gpr3>
+ASM: 	DUMP q1= < VAR AUTO:1(gpr0)>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: CONVERT
+ASM: 	zext.uc	gpr3
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = compare(77)
+ASM: 	DUMP z= <>
+ASM: 	DUMP q1= < ISREG:gpr3>
+ASM: 	DUMP q2= < VAR AUTO:12(gpr0)>
+ASM: ------
+ASM: >> 2
+ASM: ; COMPARE START ======================================================
+ASM: 	ORIGINAL ASM: 		cmp.ul	gpr3,12(gpr0)
+OBJ DUMP: 	compare unsigned long gpr3[S],Msss0+12(FP)(myULong)
+ @@q1 gpr3[S]
+ @@q2 Msss0+12(FP)(myULong)
+q1 ISREG (gpr3)
+q2 ISVAR|DREFOBJ (noreg)
+ASM: 	; BRANCH-TYPE-WILL-BE bne
+ASM: 	REGA=[:gpr3+3]
+ASM: 	NOOP = REGA A_MINUS_B_SIGNEDMAG [:B+3] _S
+ASM: 	REGA=[:gpr3+2]
+ASM: 	NOOP = REGA A_MINUS_B           [:B+2] _EQ_S
+ASM: 	REGA=[:gpr3+1]
+ASM: 	NOOP = REGA A_MINUS_B           [:B+1] _EQ_S
+ASM: 	REGA=[:gpr3+0]
+ASM: 	NOOP = REGA A_MINUS_B           [:B+0] _EQ_S
+ASM: 	; aggregate flags into register
+ASM: 	REGA=0
+ASM: 	REGA = REGA A_OR_B 1 _LT
+ASM: 	REGA = REGA A_OR_B 2 _GT
+ASM: 	REGA = REGA A_OR_B 4 _NE
+ASM: 	REGA = REGA A_OR_B 8 _EQ
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = freereg(66)
+ASM: 	DUMP z= <>
+ASM: 	DUMP q1= < ISREG:gpr3>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = bne(71)
+ASM: 	DUMP z= <>
+ASM: 	DUMP q1= <>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: ; BRANCH BLOCK ne
+ASM: 	PCHI = <:l8
+ASM: 	PCLO = >:l8 _NE
+ASM: ; BRANCH TO LABEL l8
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = label(69)
+ASM: 	DUMP z= <>
+ASM: 	DUMP q1= <>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: l7:
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = move(2)
+ASM: 	DUMP z= < VAR AUTO:12(gpr0)>
+ASM: 	DUMP q1= < K:170>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: >> 2
+ASM: ; ASSIGN/PUSH
+ASM: ; ASSIGN ul gpr0
+ASM: 	[:gpr1+0] = #aa	
+ASM: 	[:gpr1+1] = #00	
+ASM: 	[:gpr1+2] = #00	
+ASM: 	[:gpr1+3] = #00	
+ASM: 	mov.l	12(gpr0),gpr1
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = label(69)
+ASM: 	DUMP z= <>
+ASM: 	DUMP q1= <>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: l8:
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = allocreg(65)
+ASM: 	DUMP z= <>
+ASM: 	DUMP q1= < ISREG:gpr3>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = convert(50)
+ASM: 	DUMP z= < ISREG:gpr3>
+ASM: 	DUMP q1= < VAR AUTO:16(gpr0)>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: CONVERT
+ASM: 	zext.uc	gpr3
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = allocreg(65)
+ASM: 	DUMP z= <>
+ASM: 	DUMP q1= < ISREG:gpr4>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = convert(50)
+ASM: 	DUMP z= < ISREG:gpr4>
+ASM: 	DUMP q1= < VAR AUTO:17(gpr0)>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: CONVERT
+ASM: 	zext.uc	gpr4
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = add(27)
+ASM: 	DUMP z= < ISREG:gpr3>
+ASM: 	DUMP q1= < ISREG:gpr3>
+ASM: 	DUMP q2= < ISREG:gpr4>
+ASM: ------
+ASM: OR AND SHIFT MOD 
+ASM: 	add.i	gpr3,gpr3,gpr4
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = freereg(66)
+ASM: 	DUMP z= <>
+ASM: 	DUMP q1= < ISREG:gpr4>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = allocreg(65)
+ASM: 	DUMP z= <>
+ASM: 	DUMP q1= < ISREG:gpr4>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = convert(50)
+ASM: 	DUMP z= < ISREG:gpr4>
+ASM: 	DUMP q1= < ISREG:gpr8 VAR AUTO:18(gpr0)>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: CONVERT
+ASM: 	zext.uc	gpr4
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = add(27)
+ASM: 	DUMP z= < ISREG:gpr3>
+ASM: 	DUMP q1= < ISREG:gpr3>
+ASM: 	DUMP q2= < ISREG:gpr4>
+ASM: ------
+ASM: OR AND SHIFT MOD 
+ASM: 	add.i	gpr3,gpr3,gpr4
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = freereg(66)
+ASM: 	DUMP z= <>
+ASM: 	DUMP q1= < ISREG:gpr4>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = allocreg(65)
+ASM: 	DUMP z= <>
+ASM: 	DUMP q1= < ISREG:gpr4>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = convert(50)
+ASM: 	DUMP z= < ISREG:gpr4>
+ASM: 	DUMP q1= < ISREG:gpr7 VAR AUTO:19(gpr0)>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: CONVERT
+ASM: 	zext.uc	gpr4
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = add(27)
+ASM: 	DUMP z= < ISREG:gpr3>
+ASM: 	DUMP q1= < ISREG:gpr3>
+ASM: 	DUMP q2= < ISREG:gpr4>
+ASM: ------
+ASM: OR AND SHIFT MOD 
+ASM: 	add.i	gpr3,gpr3,gpr4
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = freereg(66)
+ASM: 	DUMP z= <>
+ASM: 	DUMP q1= < ISREG:gpr4>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = allocreg(65)
+ASM: 	DUMP z= <>
+ASM: 	DUMP q1= < ISREG:gpr4>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = convert(50)
+ASM: 	DUMP z= < ISREG:gpr4>
+ASM: 	DUMP q1= < VAR AUTO:20(gpr0)>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: CONVERT
+ASM: 	zext.uc	gpr4
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = add(27)
+ASM: 	DUMP z= < ISREG:gpr3>
+ASM: 	DUMP q1= < ISREG:gpr3>
+ASM: 	DUMP q2= < ISREG:gpr4>
+ASM: ------
+ASM: OR AND SHIFT MOD 
+ASM: 	add.i	gpr3,gpr3,gpr4
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = freereg(66)
+ASM: 	DUMP z= <>
+ASM: 	DUMP q1= < ISREG:gpr4>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = allocreg(65)
+ASM: 	DUMP z= <>
+ASM: 	DUMP q1= < ISREG:gpr4>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = convert(50)
+ASM: 	DUMP z= < ISREG:gpr4>
+ASM: 	DUMP q1= < VAR AUTO:21(gpr0)>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: CONVERT
+ASM: 	zext.uc	gpr4
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = add(27)
+ASM: 	DUMP z= < ISREG:gpr3>
+ASM: 	DUMP q1= < ISREG:gpr3>
+ASM: 	DUMP q2= < ISREG:gpr4>
+ASM: ------
+ASM: OR AND SHIFT MOD 
+ASM: 	add.i	gpr3,gpr3,gpr4
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = freereg(66)
+ASM: 	DUMP z= <>
+ASM: 	DUMP q1= < ISREG:gpr4>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = set-return(94)
+ASM: 	DUMP z= <>
+ASM: 	DUMP q1= < ISREG:gpr3>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: >> 2
+ASM: SETRETURN
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = freereg(66)
+ASM: 	DUMP z= <>
+ASM: 	DUMP q1= < ISREG:gpr3>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: =================================================================== NEW INST
+ASM: --HEADER----
+ASM: 	DUMP code = label(69)
+ASM: 	DUMP z= <>
+ASM: 	DUMP q1= <>
+ASM: 	DUMP q2= <>
+ASM: ------
+ASM: l1:
+ASM: # stacksize=0+??
+ASM: 	.lcomm	l3,4
+ASM: 	.globl	_extP
+OK

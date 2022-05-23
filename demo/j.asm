@@ -1,75 +1,92 @@
-;vcprmin=10000
-	section	text
-	global	_main
+	.text
+	.global	_main
 _main:
-	jsr	initmainargs
-	sec
-	lda	sp
-	sbc	#4
-	sta	sp
-	bcs	l5
-	dec	sp+1
+
+; ------ allocreg
+; ALLOCREG - gpr6
+
+; ------ allocreg
+; ALLOCREG - gpr4
+
+; ------ move
+; ASSIGN/PUSH
+; ASSIGN l gpr4
+	[:gpr4+0] = #af	
+	[:gpr4+1] = #be	
+	[:gpr4+2] = #00	
+	[:gpr4+3] = #00	
+
+; ------ move
+; ASSIGN/PUSH
+; ASSIGN l gpr6
+	[:gpr6+0] = #fe	
+	[:gpr6+1] = #fe	
+	[:gpr6+2] = #00	
+	[:gpr6+3] = #00	
+
+; ------ compare
+; COMPARE START ======================================================
+	; ORIGINAL ASM: 		cmp.l	gpr4,gpr6
+	; BRANCH-TYPE-WILL-BE bne
+	REGA=[:gpr4+3]
+	NOOP = REGA A_MINUS_B_SIGNEDMAG [:gpr6+3] _S
+	REGA=[:gpr4+2]
+	NOOP = REGA A_MINUS_B           [:gpr6+2] _EQ_S
+	REGA=[:gpr4+1]
+	NOOP = REGA A_MINUS_B           [:gpr6+1] _EQ_S
+	REGA=[:gpr4+0]
+	NOOP = REGA A_MINUS_B           [:gpr6+0] _EQ_S
+	; aggregate flags into register
+	REGA=0
+	REGA = REGA A_OR_B 1 _LT
+	REGA = REGA A_OR_B 2 _GT
+	REGA = REGA A_OR_B 4 _NE
+	REGA = REGA A_OR_B 8 _EQ
+
+; ------ bne
+; BRANCH BLOCK ne
+	PCHI = <:l4
+	PCLO = >:l4 _NE
+; BRANCH TO LABEL l4
+
+; ------ label
+l3:
+
+; ------ move
+; ASSIGN/PUSH
+; ASSIGN l gpr4
+	[:gpr4+0] = #aa	
+	[:gpr4+1] = #00	
+	[:gpr4+2] = #00	
+	[:gpr4+3] = #00	
+
+; ------ bra
+	PCHI = <:l5
+	PCLO = >:l5
+
+; ------ label
+l4:
+
+; ------ allocreg
+; ALLOCREG - gpr3
+
+; ------ mul
+OR AND SHIFT MOD 
+	mullw.l	gpr4,gpr6,187
+
+; ------ freereg
+; FREEREG - gpr3
+
+; ------ label
 l5:
-	lda	r1
-	ldy	#1
-	sta	(sp),y
-	lda	r0
-	dey
-	sta	(sp),y
-	lda	r3
-	ldy	#3
-	sta	(sp),y
-	lda	r2
-	dey
-	sta	(sp),y
-	ldx	#0
-	lda	#10
+
+; ------ set-return
+; SETRETURN - zreg = gpr3
+	[:gpr3+0] = #63	
+	[:gpr3+1] = #00	
+	[:gpr3+2] = #00	
+	[:gpr3+3] = #00	
+
+; ------ label
 l1:
-	sta	r31
-	clc
-	lda	sp
-	adc	#4
-	sta	sp
-	bcc	l6
-	inc	sp+1
-l6:
-	lda	r31
-	rts
-; stacksize=0+??
-	zpage	sp
-	zpage	r0
-	zpage	r1
-	zpage	r2
-	zpage	r3
-	zpage	r4
-	zpage	r5
-	zpage	r6
-	zpage	r7
-	zpage	r8
-	zpage	r9
-	zpage	r10
-	zpage	r11
-	zpage	r12
-	zpage	r13
-	zpage	r14
-	zpage	r15
-	zpage	r16
-	zpage	r17
-	zpage	r18
-	zpage	r19
-	zpage	r20
-	zpage	r21
-	zpage	r22
-	zpage	r23
-	zpage	r24
-	zpage	r25
-	zpage	r26
-	zpage	r27
-	zpage	r28
-	zpage	r29
-	zpage	r30
-	zpage	r31
-	zpage	btmp0
-	zpage	btmp1
-	zpage	btmp2
-	zpage	btmp3
+# stacksize=0+??

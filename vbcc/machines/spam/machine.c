@@ -170,6 +170,7 @@ static char *marray[]={"__section(x)=__vattr(\"section(\"#x\")\")",
 
 /* special registers */
 // JL ra/rx/ry I assume are phy reg's, and sp1/sp2 etc are not ??
+// fp = framepointers I think
 static int ra=1, rx=2, ry=3, sp1=4,sp2=5,sp=6,fp,fp1,fp2;
 
 static int t4=LAST_GPR,t3=LAST_GPR-1,t2=LAST_GPR-2,t1=LAST_GPR-3;
@@ -223,9 +224,9 @@ static char *udt[MAX_TYPE+1]={"??","uc","us","ui","ul","ull","f","d","ld","v","p
 #define LONGM65(c) ((c)==ASSIGN||(c)==PUSH||(c)==GETRETURN||(c)==SETRETURN||((c)>=LSHIFT&&(c)<=MOD)||((c)>=OR&&(c)<=AND))
 
 /* am */
-#define IMM_IND 1
-#define GPR_IND 2
-#define ABS_IND 3
+//#define IMM_IND 1
+//#define GPR_IND 2
+//#define ABS_IND 3
 
 /* sections */
 #define DATA 0
@@ -317,6 +318,7 @@ static long real_offset(struct obj *o)
 
 /*  Initializes an addressing-mode structure and returns a pointer to
     that object. Will not survive a second call! */
+/*
 static struct obj *cam(int flags,int base,long offset)
 {
     static struct obj obj;
@@ -327,6 +329,7 @@ static struct obj *cam(int flags,int base,long offset)
     am.offset=offset; // TODO JL knobble?
     return &obj;
 }
+*/
 
 /* changes to a special section, used for __section() */
 static int special_section(FILE *f,struct Var *v)
@@ -384,23 +387,6 @@ static int scratch(IC *p,int r,int isnext)
             if(reg_pair(p->q1.reg,&rp)&&(rp.r1==r||rp.r2==r))
                 return 1;
         }
-
-        // JL custom Address mode stuff
-        /*
-           if(p->q1.am){
-           chk_coll(p->q1.am->base);
-           if(p->q1.am->flags!=IMM_IND) chk_coll(p->q1.am->idx);
-           }
-           if(p->q2.am){
-           chk_coll(p->q2.am->base);
-           if(p->q2.am->flags!=IMM_IND) chk_coll(p->q2.am->idx);
-           }
-           if(p->z.am){
-           chk_coll(p->z.am->base);
-           if(p->z.am->flags!=IMM_IND) chk_coll(p->z.am->idx);
-           }
-         */
-        // JL end custom stuff
 
         if(p->q1.flags&REG) chk_coll(p->q1.reg);
         if(p->q2.flags&REG) chk_coll(p->q2.reg);
@@ -481,12 +467,12 @@ static int get_reg(FILE *f,IC *p,int t)
                         emit(f,"\t; pha\n");
                         emit(f,"\tmarlo = [:stack_ptr]\n");
                         emit(f,"\tmarhi = [:stack_ptr+1]\n");
-                        emit(f,"\tram   = %s\n",mregnames[r1]);
+                        emit(f,"\tram   = :%s\n",mregnames[r1]);
                         emit(f,"\t; lda\t%s\n",mregnames[r2]);
                         emit(f,"\t; pha\n");
                         emit(f,"\tmarlo = marlo - 1 _S\n");
                         emit(f,"\tmarhi = marhi - 1 _C\n");
-                        emit(f,"\tram   = %s\n",mregnames[r2]);
+                        emit(f,"\tram   = :%s\n",mregnames[r2]);
                         emit(f,"\t[:stack_ptr]   = marlo - 1 _S\n");
                         emit(f,"\t[:stack_ptr+1] = marhi - 1 _C\n");
 
@@ -497,7 +483,7 @@ static int get_reg(FILE *f,IC *p,int t)
                         emit(f,"\t; pha\n");
                         emit(f,"\tmarlo = [:stack_ptr]\n");
                         emit(f,"\tmarhi = [:stack_ptr+1]\n");
-                        emit(f,"\tram   = %s\n",mregnames[r]);
+                        emit(f,"\tram   = :%s\n",mregnames[r]);
                         emit(f,"\t[:stack_ptr]   = marlo - 1 _S\n");
                         emit(f,"\t[:stack_ptr+1] = marhi - 1 _C\n");
                     }
@@ -672,15 +658,14 @@ static void pop(int i)
 
 static int indirect(obj *o)
 {
-    if(o->am){
-        if(o->am->flags==ABS_IND&&o->am->idx==rx)
-            return 0;
-        else
-            return 1;
-    }
+
+    // DREFOBJ and !KONST
     if((o->flags&(DREFOBJ|KONST))==DREFOBJ)
         return 1;
+
+    // REG or !VAR
     if((o->flags&(REG|VAR))!=VAR){
+        // if reg is X or A
         if((o->flags&REG)&&(o->reg==ra||ISIDX(o->reg)||o->reg==rax))
             return 1;
         return 0;
@@ -762,6 +747,7 @@ static void emit_lobyte(FILE *f,obj *o,int t)
             emit(f,"%d",zm2l(vmax)&255); // JL JUST REMOVED HASH - NOT SURE WHAT THIS IS ? MAYBE 8 bit immed if #, vs something else without the #?
         }
     }else if(o->flags&VARADR){
+        // The address of the object is to be used. Only together with static variables (i.e.  storage_class == STATIC or EXTERN).
         //emit(f,"#<(");
         //emit_obj(f,o,t);
         //emit(f,")");
@@ -770,11 +756,44 @@ static void emit_lobyte(FILE *f,obj *o,int t)
         emit(f,")");
     }else if((o->flags&(REG|DREFOBJ))==REG){
         if(!reg_pair(o->reg,&rp))
-            emit(f,"%s",mregnames[o->reg]);
+            emit(f,":%s",mregnames[o->reg]);
         else
-            emit(f,"%s",mregnames[rp.r1]);
+            emit(f,":%s",mregnames[rp.r1]);
     }else{
         if(zzero&&(o->flags&(DREFOBJ|KONST))==DREFOBJ) noy=1;
+        emit_obj(f,o,t);
+        noy=0;
+    }
+}
+
+static void emit_lobyte_SPAM(FILE *f,obj *o,int t)
+{
+    if(o->flags&KONST){
+        if(o->flags&DREFOBJ){
+            eval_const(&o->val,o->dtyp);
+            emit(f,"%d",zm2l(vmax));
+        }else{
+            eval_const(&o->val,t);
+            if(ISFLOAT(t)) cnv_fp();
+            //emit(f,"#%d",zm2l(vmax)&255);
+            emit(f,"%d",zm2l(vmax)&255); // JL JUST REMOVED HASH - NOT SURE WHAT THIS IS ? MAYBE 8 bit immed if #, vs something else without the #?
+        }
+    }else if(o->flags&VARADR){
+        // The address of the object is to be used. Only together with static variables (i.e.  storage_class == STATIC or EXTERN).
+        //emit(f,"#<(");
+        //emit_obj(f,o,t);
+        //emit(f,")");
+        emit(f,">("); // assume it's an obj name?
+        emit_obj(f,o,t);
+        emit(f,")");
+    }else if((o->flags&(REG|DREFOBJ))==REG){
+        if(!reg_pair(o->reg,&rp))
+            emit(f,":%s",mregnames[o->reg]);
+        else
+            emit(f,":%s",mregnames[rp.r1]);
+    }else{
+        if(zzero&&(o->flags&(DREFOBJ|KONST))==DREFOBJ) noy=1;
+        
         emit_obj(f,o,t);
         noy=0;
     }
@@ -801,11 +820,11 @@ static void emit_hibyte(FILE *f,obj *o,int t)
         emit(f,")");
     }else if((o->flags&(REG|DREFOBJ))==REG){
         if(o->reg>=FIRST_BIG&&o->reg<=LAST_BIGP){
-            emit(f,"%s+1",mregnames[o->reg]);
+            emit(f,":%s+1",mregnames[o->reg]);
         }else{
             if(!reg_pair(o->reg,&rp))
                 ierror(0);
-            emit(f,"%s",mregnames[rp.r2]);
+            emit(f,":%s",mregnames[rp.r2]);
         }
     }else{
         if(o->flags&VARADR) {
@@ -834,7 +853,7 @@ static void emit_byte3(FILE *f,obj *o,int t)
             emit(f,"%d",(zm2l(vmax)>>16)&255); // DONT EMIT THE #
         }
     }else if((o->flags&(REG|DREFOBJ))==REG){
-        emit(f,"%s+2",mregnames[o->reg]);
+        emit(f,":%s+2",mregnames[o->reg]);
     }else if(o->flags&VARADR){
         //emit(f,"#%d",bank(o->v));
         emit(f,"%d",bank(o->v)); // JL NO #
@@ -860,7 +879,7 @@ static void emit_byte4(FILE *f,obj *o,int t)
             emit(f,"%d",(zm2l(vmax)>>24)&255); // NO HASH
         }
     }else if((o->flags&(REG|DREFOBJ))==REG){
-        emit(f,"%s+3",mregnames[o->reg]);
+        emit(f,":%s+3",mregnames[o->reg]);
     }else{
         if(!(o->flags&DREFOBJ))
             o->val.vmax=zmadd(o->val.vmax,l2zm(3L));
@@ -882,43 +901,7 @@ static char* toSpamReg(char* name) {
 
 static void ldq_offset(FILE *f,obj *o)
 {
-    if(o->am){
-        if(o->am->flags==IMM_IND) {
-            //emit(f,"\tldz\t#%ld\n",o->am->offset);
-            emit(f,"\t; ldz\t#%ld\n",o->am->offset);
-            emit(f,"\tREGD = \t%ld\n",o->am->offset);
-        }
-        else if(o->am->flags==GPR_IND||o->am->flags==ABS_IND){
-            if(o->am->idx==ra) {
-                //emit(f,"\ttaz\n");
-                emit(f,"\t; taz\n");
-                emit(f,"\tREGD = REGA\n");
-            }
-            else{
-                if(ISIDX(o->am->idx)){
-                    if(o->am->flags==GPR_IND){
-                        // JL Transfers somereg to Z
-                        //emit(f,"\tpha\n");
-                        //emit(f,"\tt%sa\n",mregnames[o->am->idx]);
-                        //emit(f,"\ttaz\n");
-                        //emit(f,"\tpla\n");
-
-                        emit(f,"\t; pha\n");
-                        emit(f,"\t; t%sa\n",mregnames[o->am->idx]);
-                        emit(f,"\t; taz\n");
-                        emit(f,"\t; pla\n");
-
-                        emit(f,"\tREGD = REG%s\n", toSpamReg(mregnames[o->am->idx]) ); // TODO NEED TO MAP INTO Y/X/Z
-                    }
-                }else {
-                    //emit(f,"\tldz\t%s\n",mregnames[o->am->idx]);
-                    emit(f,"\t; ldz\t%s\n",mregnames[o->am->idx]);
-                    emit(f,"\tREGD = [:%s]\n", mregnames[o->am->idx]);
-                }
-            }
-        }else
-            ierror(0);
-    }else if((o->flags&(DREFOBJ|KONST))==DREFOBJ){
+    if((o->flags&(DREFOBJ|KONST))==DREFOBJ){
         /*if(!zzero)*/ emit(f,"\tldz\t#0\n");
         emit(f,"\t; ldz\t#0\n");
         emit(f,"\tREGD = 0\n");
@@ -930,79 +913,29 @@ static void ldq_offset(FILE *f,obj *o)
     }
 }
 
-/*
-loads the Y register (REGC) presumably for "am" addressing mode purposes in some subsequent operation 
-*/
-static void do_amload(FILE *f,obj *o)
-{
-    if(o->am->flags==GPR_IND||o->am->flags==ABS_IND){
-        if(o->am->idx==ra) {
-            // addressing indexed via the A reg so load from the A reg
-
-            //emit(f,"\ttay\n");
-            emit(f,"\t; tay\n");
-            emit(f,"\tREGC = REGA\n");
-        }
-        else{
-            // is the idx the X reg?
-            if(ISIDX(o->am->idx)){
-                // addressing indexed by the X reg so load Y from X reg
-                if(o->am->flags==GPR_IND){
-                    //emit(f,"\tpha\n");
-                    //emit(f,"\tt%sa\n",mregnames[o->am->idx]);
-                    //emit(f,"\ttay\n");
-                    //emit(f,"\tpla\n");
-
-                    emit(f,"\t; pha\n");
-                    emit(f,"\t; t%sa\n",mregnames[o->am->idx]);
-                    emit(f,"\t; tay\n");
-                    emit(f,"\t; pla\n");
-                    // given there is an X check about then this could have just been hard coded as txa/tay without the mregnames reference
-                    emit(f,"\tREGC = REG%s\n", toSpamReg(mregnames[o->am->idx]) ); // TODO NEED TO MAP INTO Y/X/Z
-                }
-            }else{
-                if(o->am->idx==ra) {
-                    //emit(f,"\ttay\n");
-                    emit(f,"\t; tay\n");
-                    emit(f,"\tREGC = REGA\n");
-                }
-                else {
-                    //emit(f,"\tldy\t%s\n",mregnames[o->am->idx]);
-                    emit(f,"\t; ldy\t%s\n",mregnames[o->am->idx]);
-                    emit(f,"\tREGC = :%s\n",mregnames[o->am->idx]);
-                }
-            }
-        }
-    }else
-        ierror(0);
-}
 static void do_lobyte(FILE *f,char *s,obj *o,int type)
 {
-    if(o->am){
-        if(o->am->flags==IMM_IND)
-            sety(f,o->am->offset);
-        else{
-            do_amload(f,o);
-            yval=NOVAL;
-        }
-    }else if((o->flags&(DREFOBJ|KONST))==DREFOBJ){
+    if((o->flags&(DREFOBJ|KONST))==DREFOBJ){
         if(!zzero) sety(f,0);
     }else if((o->flags&(VAR|REG|VARADR))==VAR&&(o->v->storage_class==AUTO||o->v->storage_class==REGISTER)){
         sety(f,(int)real_offset(o));
     }
 
-    emit(f,"\t; do_lobyte %s\n",s);
     if (strcmp("lda", s)==0) {
        // emit(f,"\t%s\t",s);
-        emit(f,"\t; %s\n",s);
+        emit(f,"\t; do_lobyte %s\n",s);
         emit(f,"\tREGA = ");
-        emit_lobyte(f,o,type);
+        emit_lobyte_SPAM(f,o,type);
     } else if (strcmp("sta", s)==0) {
         //emit(f,"\t%s\t",s);
-        emit(f,"\t; %s\n",s);
+        emit(f,"\t; do_lobyte %s\n",s);
         emit(f,"\t[");
         emit_lobyte(f,o,type);
         emit(f,"] = REGA");
+    } else if (strcmp("adc", s)==0) {
+        emit(f,"\t; do_lobyte NOT DONE %s\n",s);
+        emit_lobyte(f,o,type);
+        emit(f,"\t; do_lobyte END NOT DONE %s\n",s);
     } else {
         printf("CANNOT MAP do_lobyte FOR %s\n", s);
         //ierror(0);
@@ -1014,27 +947,8 @@ static void do_lobyte(FILE *f,char *s,obj *o,int type)
 static void do_hibyte(FILE *f,char *s,obj *o,int type)
 {
 emit(f,"\t; do_hi\n");
-    int ami=0;
-    if(o->am){
-emit(f,"\t; am\n");
-        if(o->am->flags==IMM_IND) {
-emit(f,"\t; IMM_IND\n");
-            sety(f,o->am->offset+1);
-        } else{
-emit(f,"\t; ! IMM_IND\n");
-            do_amload(f,o);
-            if(o->am->flags==GPR_IND){
-emit(f,"\t; ! == FPR_IND %d\n", o->am->flags);
-                //emit(f,"\tiny\n");
-                emit(f,"\t; iny\n");
-                emit(f,"\tREGC = REGC + 1\n");
-            }else{
-emit(f,"\t; else\n");
-                o->am->offset++;ami=1;
-            }
-            yval=NOVAL; 
-        }
-    }else  if((o->flags&(DREFOBJ|KONST))==DREFOBJ){
+
+    if((o->flags&(DREFOBJ|KONST))==DREFOBJ){
 emit(f,"\t; sety dref\n");
         sety(f,1);
     }else if((o->flags&(VAR|REG|VARADR))==VAR&&(o->v->storage_class==AUTO||o->v->storage_class==REGISTER)){
@@ -1043,60 +957,52 @@ emit(f,"\t; sety real\n");
     }
 //    emit(f,"\t%s\t",s);
 
-    emit(f,"\t; do_hibyte %s\n",s);
     if (strcmp("lda", s)==0) {
        // emit(f,"\t%s\t",s);
-        emit(f,"\t; %s\n",s);
+        emit(f,"\t; do_hibyte %s\n",s);
         emit(f,"\tREGA = ");
         emit_hibyte(f,o,type);
     } else if (strcmp("sta", s)==0) {
         //emit(f,"\t%s\t",s);
-        emit(f,"\t; %s\n",s);
+        emit(f,"\t; do_hibyte %s\n",s);
         emit(f,"\t[");
         emit_hibyte(f,o,type);
         emit(f,"] = REGA");
+    } else if (strcmp("stz", s)==0) {
+        //emit(f,"\t%s\t",s);
+        emit(f,"\t; do_hibyte %s\n",s);
+        emit(f,"\t[");
+        emit_hibyte(f,o,type);
+        emit(f,"] = REGD");
+    } else if (strcmp("adc", s)==0) {
+        emit(f,"\t; do_hibyte %s\n",s);
+    } else if (strcmp("ldx", s)==0) {
+        emit(f,"\t; do_hibyte %s\n",s);
     } else {
         printf("CANNOT MAP do_hibyte FOR %s\n", s);
         //ierror(0);
     }
 
     emit(f,"\n");
-    if(ami) o->am->offset--;
 }
 
 static void do_byte3(FILE *f,char *s,obj *o,int type)
 {
-    int ami=0;
-    if(o->am){
-        if(o->am->flags==IMM_IND)
-            sety(f,o->am->offset+2);
-        else{
-            do_amload(f,o);
-            if(o->am->flags==GPR_IND){
-                //emit(f,"\tiny\n\tiny\n");
-                emit(f,"\t; iny\n\tiny\n");
-                emit(f,"\tREGC = REGC + 2\n");
-            }else{
-                o->am->offset+=2;ami=1;
-            }
-            yval=NOVAL;
-        }
-    }else  if((o->flags&(DREFOBJ|KONST))==DREFOBJ){
+    if((o->flags&(DREFOBJ|KONST))==DREFOBJ){
         sety(f,2);
     }else if((o->flags&(VAR|REG|VARADR))==VAR&&(o->v->storage_class==AUTO||o->v->storage_class==REGISTER)){
         sety(f,(int)real_offset(o)+2);
     }
     //emit(f,"\t%s\t",s); 
 
-    emit(f,"\t; do_byte3 %s\n",s);
     if (strcmp("lda", s)==0) {
        // emit(f,"\t%s\t",s);
-        emit(f,"\t; %s\n",s);
+        emit(f,"\t; do_byte3: %s\n",s);
         emit(f,"\tREGA = ");
         emit_byte3(f,o,type);
     } else if (strcmp("sta", s)==0) {
         //emit(f,"\t%s\t",s);
-        emit(f,"\t; %s\n",s);
+        emit(f,"\t; do_byte3: %s\n",s);
         emit(f,"\t[");
         emit_byte3(f,o,type);
         emit(f,"] = REGA");
@@ -1106,27 +1012,11 @@ static void do_byte3(FILE *f,char *s,obj *o,int type)
     }
 
     emit(f,"\n");
-    if(ami) o->am->offset-=2;
 }
 
 static void do_byte4(FILE *f,char *s,obj *o,int type)
 {
-    int ami=0;
-    if(o->am){
-        if(o->am->flags==IMM_IND)
-            sety(f,o->am->offset+3);
-        else{
-            do_amload(f,o);
-            if(o->am->flags==GPR_IND){ 
-                //emit(f,"\tiny\n\tiny\n\tiny\n");
-                emit(f,"\t; iny\n\t; iny\n\t; iny\n");
-                emit(f,"\tREGC = REGC + 3\n");
-            }else{
-                o->am->offset+=3;ami=1;
-            }
-            yval=NOVAL;
-        }
-    }else  if((o->flags&(DREFOBJ|KONST))==DREFOBJ){
+    if((o->flags&(DREFOBJ|KONST))==DREFOBJ){
         sety(f,3);
     }else if((o->flags&(VAR|REG|VARADR))==VAR&&(o->v->storage_class==AUTO||o->v->storage_class==REGISTER)){
         sety(f,(int)real_offset(o)+3);
@@ -1135,15 +1025,14 @@ static void do_byte4(FILE *f,char *s,obj *o,int type)
     //emit(f,"\t%s\t",s);
     //emit_byte4(f,o,type);
 
-    emit(f,"\t; do_byte4 %s\n",s);
     if (strcmp("lda", s)==0) {
        // emit(f,"\t%s\t",s);
-        emit(f,"\t; %s\n",s);
+        emit(f,"\t; do_byte4 %s\n",s);
         emit(f,"\tREGA = ");
         emit_byte4(f,o,type);
     } else if (strcmp("sta", s)==0) {
         //emit(f,"\t%s\t",s);
-        emit(f,"\t; %s\n",s);
+        emit(f,"\t; do_byte4 %s\n",s);
         emit(f,"\t[");
         emit_byte4(f,o,type);
         emit(f,"] = REGA");
@@ -1153,7 +1042,6 @@ static void do_byte4(FILE *f,char *s,obj *o,int type)
     }
 
     emit(f,"\n");
-    if(ami) o->am->offset-=3;
 }
 
 static void load_lobyte(FILE *f,obj *o,int t)
@@ -1163,7 +1051,7 @@ static void load_lobyte(FILE *f,obj *o,int t)
             return;
         if(o->reg==rx){
             //emit(f,"\ttxa\n");
-            emit(f,"\t; txa\n");
+            emit(f,"\t; load_lobyte txa\n");
             emit(f,"\tREGA = REGB\n");
             return;
         }
@@ -1175,7 +1063,7 @@ static void load_hibyte(FILE *f,obj *o,int t)
 {
     if((o->flags&REG)&&(o->reg==rx||o->reg==rax)) {
         //emit(f,"\ttxa\n");
-        emit(f,"\t; txa\n");
+        emit(f,"\t; load_hibyte txa\n");
         emit(f,"\tREGA = REGB\n");
     } else {
         do_hibyte(f,"lda",o,t);
@@ -1189,7 +1077,7 @@ static void store_lobyte(FILE *f,obj *o,int t)
             return;
         if(o->reg==rx){
             //emit(f,"\ttax\n");
-            emit(f,"\t; tax\n");
+            emit(f,"\t; store_lobyte tax\n");
             emit(f,"\tREGB = REGA\n");
             return;
         }
@@ -1199,10 +1087,13 @@ static void store_lobyte(FILE *f,obj *o,int t)
 
 static void store_hibyte(FILE *f,obj *o,int t)
 {
-    if((o->flags&REG)&&(o->reg==rx||o->reg==rax))
+    if((o->flags&REG)&&(o->reg==rx||o->reg==rax)) {
+        emit(f,"\t; store_hibyte tax\n");
         emit(f,"\ttax\n");
-    else
+    } else {
+        emit(f,"\t; store_hibyte sta\n");
         do_hibyte(f,"sta",o,t);
+    }
 }
 
 static void load_acc(FILE *f,obj *o,int type)
@@ -1211,15 +1102,21 @@ static void load_acc(FILE *f,obj *o,int type)
         return;
     if(!ISCHAR(type)){
         if(indirect(o)){
+            emit(f,"\t; load_acc lda\n");
             do_hibyte(f,"lda",o,type);
             emit(f,"\ttax\n");
-        }else
+        }else {
+            emit(f,"\t; load_acc ldx\n");
             do_hibyte(f,"ldx",o,type);
+        }
     }
-    if((o->flags&(REG|DREFOBJ))==REG&&o->reg==rx)
+    if((o->flags&(REG|DREFOBJ))==REG&&o->reg==rx) {
+        emit(f,"\t; load_acc txa\n");
         emit(f,"\ttxa\n");
-    else
+    } else {
+        emit(f,"\t; load_acc ldx\n");
         do_lobyte(f,"lda",o,type);
+    }
 }
 
 static void store_acc(FILE *f,obj *o,int type)
@@ -1230,6 +1127,7 @@ static void store_acc(FILE *f,obj *o,int type)
     if((o->flags&REG)&&(o->reg==ra||o->reg==rax))
         return;
     if((o->flags&REG)&&o->reg==rx){
+        emit(f,"\t; store_acc tax\n");
         emit(f,"\ttax\n");
         return;
     }
@@ -1237,10 +1135,13 @@ static void store_acc(FILE *f,obj *o,int type)
     if(!ISCHAR(type)){
         if(indirect(o)){
             /*TODO: save accu */
+            emit(f,"\t; store_acc txa\n");
             emit(f,"\ttxa\n");
             store_hibyte(f,o,type);
-        }else
+        }else {
+            emit(f,"\t; store_acc stx\n");
             do_hibyte(f,"stx",o,type);
+        }
     }
 }
 
@@ -1757,6 +1658,7 @@ static void preload(FILE *f,IC *p)
     int r,mra=regs[ra],mrax=regs[rax];
     int bq1=-1,bq2=-1,bz=-1,sb=-1,zbuf=0;
 
+/*
     if(((p->q1.flags&DREFOBJ)&&p->q1.am&&(p->q1.am->flags==GPR_IND||p->q1.am->flags==ABS_IND)&&p->q1.am->idx==ra)||
             ((p->q2.flags&DREFOBJ)&&p->q2.am&&(p->q2.am->flags==GPR_IND||p->q2.am->flags==ABS_IND)&&p->q2.am->idx==ra)||
             ((p->z.flags&DREFOBJ)&&p->z.am&&(p->z.am->flags==GPR_IND||p->z.am->flags==ABS_IND)&&p->z.am->idx==ra)
@@ -1775,6 +1677,7 @@ static void preload(FILE *f,IC *p)
         if((p->z.flags&DREFOBJ)&&p->z.am&&(p->z.am->flags==GPR_IND||p->z.am->flags==ABS_IND)&&p->z.am->idx==ra)
             p->z.am->idx=r;
     }
+*/
 
     if(p->code==GETRETURN&&p->q1.reg==ra&&!regs[ra])
         regs[ra]=1;
@@ -1910,17 +1813,7 @@ static void preload(FILE *f,IC *p)
 
         if(isreg(z)){
             r=0;
-            if(p->q1.am&&p->q1.am->base==p->z.reg){
-                r=get_reg(f,p,POINTER);
-                cmp_get_acc(f,p,0);
-                if(!reg_pair(p->q1.am->base,&rp)) ierror(0);
-                if(!reg_pair(r,&rp2)) ierror(0);
-                emit(f,"\tlda\t%s\n",mregnames[rp.r1]);
-                emit(f,"\tsta\t%s\n",mregnames[rp2.r1]);
-                emit(f,"\tlda\t%s\n",mregnames[rp.r2]);
-                emit(f,"\tsta\t%s\n",mregnames[rp2.r2]);
-                p->q1.am->base=p->q1.reg=r;
-            }else if(!p->q1.am&&(p->q1.flags&(REG|DREFOBJ))==(REG|DREFOBJ)&&p->q1.reg==p->z.reg){
+            if((p->q1.flags&(REG|DREFOBJ))==(REG|DREFOBJ)&&p->q1.reg==p->z.reg){
                 r=get_reg(f,p,POINTER);
                 cmp_get_acc(f,p,0);
                 if(!reg_pair(p->z.reg,&rp)) ierror(0);
@@ -1931,19 +1824,7 @@ static void preload(FILE *f,IC *p)
                 emit(f,"\tsta\t%s\n",mregnames[rp2.r2]);
                 p->q1.reg=r;
             }
-            if(p->q2.am&&p->q2.am->base==p->z.reg){
-                if(r==0){
-                    r=get_reg(f,p,POINTER);
-                    cmp_get_acc(f,p,0);
-                    if(!reg_pair(p->q2.am->base,&rp)) ierror(0);
-                    if(!reg_pair(r,&rp2)) ierror(0);
-                    emit(f,"\tlda\t%s\n",mregnames[rp.r1]);
-                    emit(f,"\tsta\t%s\n",mregnames[rp2.r1]);
-                    emit(f,"\tlda\t%s\n",mregnames[rp.r2]);
-                    emit(f,"\tsta\t%s\n",mregnames[rp2.r2]);
-                }
-                p->q2.am->base=p->q2.reg=r;
-            }else if(!p->q2.am&&(p->q2.flags&(REG|DREFOBJ))==(REG|DREFOBJ)&&p->q2.reg==p->z.reg){
+            if((p->q2.flags&(REG|DREFOBJ))==(REG|DREFOBJ)&&p->q2.reg==p->z.reg){
                 if(r==0){
                     r=get_reg(f,p,POINTER);
                     cmp_get_acc(f,p,0);
@@ -1991,17 +1872,6 @@ static int compare_objects(struct obj *o1,struct obj *o2)
     if((o1->flags&(REG|DREFOBJ))==REG&&(o2->flags&(REG|DREFOBJ))==REG&&o1->reg==o2->reg)
         return 1;
     if(o1->flags==o2->flags){
-        if(o1->am){
-            if(o2->am){
-                if(o1->am->flags!=o2->am->flags||o1->am->base!=o2->am->base||
-                        o1->am->idx!=o2->am->idx||o1->am->offset!=o2->am->offset)
-                    return 0;
-                else
-                    return 1;
-            }else
-                return 0;
-        }else if(o2->am)
-            return 0;
         if(!(o1->flags&VAR)||(o1->v==o2->v&&zmeqto(o1->val.vmax,o2->val.vmax))){
             if(!(o1->flags&REG)||o1->reg==o2->reg){
                 return 1;
@@ -2023,7 +1893,7 @@ char* emitjl(FILE *f,const char *fmt,...)
   static char tmp[EMIT_BUF_LEN];
   char *p;
   va_list vl;
-  if(!f||no_emit) return;
+  if(!f||no_emit) return 0;
   va_start(vl,fmt);
   vsprintf(tmp,fmt,vl);
   p=tmp;
@@ -2031,9 +1901,6 @@ char* emitjl(FILE *f,const char *fmt,...)
     *emit_p++=*p++;
     if(p[-1]=='\n'){
       *emit_p=0;
-#if HAVE_TARGET_PEEPHOLE
-      while(emit_peephole());
-#endif
       emit_l++;
       if(emit_l>=EMIT_BUF_DEPTH) emit_l=0;
       emit_p=emit_buffer[emit_l];
@@ -2055,6 +1922,7 @@ char* emitjl(FILE *f,const char *fmt,...)
 /* prints an object */
 static void emit_obj(FILE *f,struct obj *p,int t)
 {
+/*
     if(p->am){
         if(p->am->flags==IMM_IND) {
             emit(f,"(%s),y ;am(%ld)",mregnames[p->am->base],p->am->offset);
@@ -2077,33 +1945,52 @@ static void emit_obj(FILE *f,struct obj *p,int t)
             ierror(0);
         return;
     }
+*/
     if((p->flags&(KONST|DREFOBJ))==(KONST|DREFOBJ)){
+emit(f,"@@K&D");
         emitval(f,&p->val,p->dtyp&NU);
         return;
     }
-    if(p->flags&DREFOBJ) emit(f,"(");
+    if(p->flags&DREFOBJ) {
+emit(f,"@@DEREF");
+        emit(f,"(");
+    }
     if(p->flags&REG){
+emit(f,"@@R");
         emit(f,"%s",mregnames[p->reg]);
     } else if(p->flags&VAR) {
         if(p->v->storage_class==AUTO||p->v->storage_class==REGISTER) {
-            //emit(f,"(%s),%s ; fp=%d",mregnames[fp],noy==2?"z":"y", fp);
+emit(f,"@@V A|R");
+            //emit(f,"(%s),%s",mregnames[fp],noy==2?"z":"y");
+            emit(f,"MARLO = [:%s]", mregnames[fp]);
+            emit(f,"MARHI = [:%s+1]", mregnames[fp]);
+
             emit(f,"(%s),%s",mregnames[fp],noy==2?"z":"y");
         } else{
-            if(!zmeqto(l2zm(0L),p->val.vmax)){emitval(f,&p->val,MAXINT);emit(f,"+");}
+emit(f,"@@V !A|R");
+            if(!zmeqto(l2zm(0L),p->val.vmax)){
+emit(f,"@@V !ZERO");
+                emitval(f,&p->val,MAXINT);emit(f,"+");
+            }
             if(p->v->storage_class==STATIC){
+emit(f,"@@V STATIC");
                 emit(f,"%s%ld",labprefix,zm2l(p->v->offset));
             }else{
+emit(f,"@@V !STATIC");
                 emit(f,"%s%s",idprefix,p->v->identifier);
             }
         }
     }
     if(p->flags&KONST){
+emit(f,"@@K");
         if(/*ieee&&((t&NQ)==DOUBLE||(t&NQ)==LDOUBLE)*/ISFLOAT(t))
             emit(f,"%s%d",labprefix,addfpconst(p,t));
         else
             emitval(f,&p->val,t&NU);
     }
-    if(p->flags&DREFOBJ) emit(f,")%s",noy==0?",y":(noy==1?"":",z"));
+    if(p->flags&DREFOBJ) {
+        emit(f,")%s",noy==0?",y":(noy==1?"":",z"));
+    }
 }
 
 /*  Test if there is a sequence of FREEREGs containing FREEREG reg.
@@ -2117,198 +2004,6 @@ static int exists_freereg(struct IC *p,int reg)
     return 0;
 }
 
-/* search for possible addressing-modes */
-static void peephole(struct IC *p)
-{
-    int c,c2,r;struct IC *p2,*free_base,*use;struct AddressingMode *am;
-
-    for(;p;p=p->next){
-        c=p->code;
-        if(c!=FREEREG&&c!=ALLOCREG&&(c!=SETRETURN||!isreg(q1)||p->q1.reg!=p->z.reg)) exit_label=0;
-        if(c==LABEL) exit_label=p->typf;
-
-        /* Try const(reg) */
-        if((c==ADDI2P||c==SUBIFP)&&ISPREG(z)&&(p->q2.flags&(KONST|DREFOBJ))==KONST&&!ISFPOINTER(p->typf2)){
-            int base;zmax of;struct obj *o;IC *dub=0;
-            eval_const(&p->q2.val,p->typf);
-            if(c==SUBIFP) of=zmsub(l2zm(0L),vmax); else of=vmax;
-            if(zmleq(Z0,of)&&zmleq(of,l2zm(255L))){
-                r=p->z.reg;
-                if(isreg(q1)&&isptr(p->q1.reg)) base=p->q1.reg; else base=r;
-                o=0;free_base=0;
-                for(p2=p->next;p2;p2=p2->next){
-                    c2=p2->code;
-                    if(c2==CALL||c2==LABEL||(c2>=BEQ&&c2<=BRA)) break;
-                    if(c2==FREEREG&&p2->q1.reg==p->z.reg) free_base=p2;
-                    if(c2!=FREEREG&&(p2->q1.flags&(REG|DREFOBJ))==REG&&p2->q1.reg==r) break;
-                    if(c2!=FREEREG&&(p2->q2.flags&(REG|DREFOBJ))==REG&&p2->q2.reg==r) break;
-                    if(c2!=CALL&&(c2<LABEL||c2>BRA)/*&&c2!=ADDRESS*/){
-                        int t,mc;
-                        if((c2==ASSIGN|c2==PUSH)&&(p2->typf&NQ)==CHAR&&!zmeqto(p2->q2.val.vmax,Z1))
-                            mc=1;
-                        else
-                            mc=0;
-                        if(!o&&(c2==ADD||c2==SUB||c2==AND||c2==OR||c2==XOR)&&/*(p2->typf&NQ)==CHAR&&*/!p2->q1.am&&!p2->z.am&&
-                                (p2->q1.flags&(REG|DREFOBJ))==(REG|DREFOBJ)&&
-                                p2->q1.flags==p2->z.flags&&p2->q1.reg==r&&p2->z.reg==r){
-                            o=&p2->q1;use=p2;
-                            dub=p2;
-                            continue;
-                        }
-                        if(!p2->q1.am&&(p2->q1.flags&(REG|DREFOBJ))==(REG|DREFOBJ)&&p2->q1.reg==r){
-                            if(o||mc) break;
-                            t=q1typ(p2)&NQ;
-                            if(t>POINTER||ISFLOAT(t)) break;
-                            if(m65&&ISLONG(t)) break;
-                            o=&p2->q1;use=p2;
-                        }
-                        if(!p2->q2.am&&(p2->q2.flags&(REG|DREFOBJ))==(REG|DREFOBJ)&&p2->q2.reg==r){
-                            if(o||mc) break;
-                            t=q2typ(p2)&NQ;
-                            if(t>POINTER||ISFLOAT(t)) break;
-                            if(m65&&ISLONG(t)) break;
-                            o=&p2->q2;use=p2;
-                        }
-                        if(!p2->z.am&&(p2->z.flags&(REG|DREFOBJ))==(REG|DREFOBJ)&&p2->z.reg==r){
-                            if(o||mc) break;
-                            t=ztyp(p2)&NQ;
-                            if(t>POINTER||ISFLOAT(t)) break;
-                            if(m65&&ISLONG(t)) break;
-                            o=&p2->z;use=p2;
-                        }
-                    }
-                    if(c2==FREEREG||(p2->z.flags&(REG|DREFOBJ))==REG){
-                        int m;
-                        if(c2==FREEREG)
-                            m=p2->q1.reg;
-                        else{
-                            m=p2->z.reg;
-                            if(o==&p->q1||o==&p->q2) break;
-                        }
-                        if(m==r){
-                            if(o){
-                                o->am=am=mymalloc(sizeof(*am));
-                                am->flags=IMM_IND;
-                                am->base=base;
-                                am->offset=(int)zm2l(of);
-                                if(ISPREG(q1)){
-                                    p->code=c=NOP;p->q1.flags=p->q2.flags=p->z.flags=0;
-                                }else{
-                                    p->code=c=ASSIGN;p->q2.flags=0;
-                                    p->typf=p->typf2;p->q2.val.vmax=sizetab[p->typf2&NQ];
-                                }
-                            }
-                            if(dub){
-                                dub->z=*o;
-                                dub->z.am=mymalloc(sizeof(*am));
-                                *dub->z.am=*o->am;
-                            }
-                            if(free_base) move_IC(use,free_base);
-                            break;
-                        }
-                        if(c2!=FREEREG&&m==base) break;
-                        continue;
-                    }
-                }
-            }
-        }
-        /* Try reg,reg */
-        if(c==ADDI2P&&(p->typf&NU)==(UNSIGNED|CHAR)&&!ISFPOINTER(p->typf2)&&isreg(q2)/*&&p->q2.reg!=ra*/&&ISPREG(z)&&(ISPREG(q1)||p->q2.reg!=p->z.reg)){
-            int base,idx,ind;struct obj *o;IC *free_idx,*dub=0;
-            r=p->z.reg;idx=p->q2.reg;
-            if(ISPREG(q1)) base=p->q1.reg; else base=r;
-            if((p->q1.flags&VARADR)||(p->q1.flags&(KONST|DREFOBJ))==KONST)
-                ind=0;
-            else
-                ind=1;
-            o=0;free_base=free_idx=use=0;
-            for(p2=p->next;p2;p2=p2->next){
-                c2=p2->code;
-                if(c2==CALL||c2==LABEL||(c2>=BEQ&&c2<=BRA)) break;
-                if(c2==FREEREG&&p2->q1.reg==p->z.reg) free_base=p2;
-                if(c2==FREEREG&&p2->q1.reg==p->q2.reg) free_idx=p2;
-                if(c2!=FREEREG&&(p2->q1.flags&(REG|DREFOBJ))==REG&&p2->q1.reg==r) break;
-                if(c2!=FREEREG&&(p2->q2.flags&(REG|DREFOBJ))==REG&&p2->q2.reg==r) break;
-                if((p2->z.flags&(REG|DREFOBJ))==REG&&idx!=r){
-                    if(p2->z.reg==idx) break;
-                    if(reg_pair(p2->z.reg,&rp)){
-                        if(rp.r1==idx) break;
-                        if(rp.r2==idx) break;
-                    }
-                }
-
-                if(c2!=CALL&&(c2<LABEL||c2>BRA)/*&&c2!=ADDRESS*/){
-                    if(!o&&(c2==ADD||c2==SUB||c2==AND||c2==OR||c2==XOR)&&/*(p2->typf&NQ)==CHAR&&*/!p2->q1.am&&!p2->z.am&&
-                            (p2->q1.flags&(REG|DREFOBJ))==(REG|DREFOBJ)&&
-                            p2->q1.flags==p2->z.flags&&p2->q1.reg==r&&p2->z.reg==r){
-                        o=&p2->q1;use=p2;
-                        dub=p2;
-                        continue;
-                    }
-                    if(!p2->q1.am&&(p2->q1.flags&(REG|DREFOBJ))==(REG|DREFOBJ)&&p2->q1.reg==r){
-                        if(o||(ind&&(q1typ(p2)&NQ)!=CHAR)) break;
-                        if(ieee&&ISFLOAT(q1typ(p2))) break;
-                        o=&p2->q1;use=p2;
-                    }
-                    if(!p2->q2.am&&(p2->q2.flags&(REG|DREFOBJ))==(REG|DREFOBJ)&&p2->q2.reg==r){
-                        if(o||(ind&&(q2typ(p2)&NQ)!=CHAR)) break;
-                        if(ieee&&ISFLOAT(q2typ(p2))) break;
-                        o=&p2->q2;use=p2;
-                    }
-                    if(!p2->z.am&&(p2->z.flags&(REG|DREFOBJ))==(REG|DREFOBJ)&&p2->z.reg==r){
-                        if(o||(ind&&(ztyp(p2)&NQ)!=CHAR)) break;
-                        if(ieee&&ISFLOAT(ztyp(p2))) break;
-                        o=&p2->z;use=p2;
-                    }
-                }
-
-                if(c2==FREEREG||(p2->z.flags&(REG|DREFOBJ))==REG){
-                    int m;
-                    if(c2==FREEREG)
-                        m=p2->q1.reg;
-                    else
-                        m=p2->z.reg;
-                    if(m==r){
-                        if(o){
-                            o->am=am=mymalloc(sizeof(*am));
-                            am->idx=idx;
-                            if(ind){
-                                am->flags=GPR_IND;
-                                am->base=base;
-                                if(ISPREG(q1)){
-                                    p->code=c=NOP;p->q1.flags=p->q2.flags=p->z.flags=0;
-                                }else{
-                                    p->code=c=ASSIGN;p->q2.flags=0;
-                                    p->typf=p->typf2;p->q2.val.vmax=sizetab[p->typf2&NQ];
-                                }
-                            }else{
-                                am->flags=ABS_IND;
-                                am->base=0;
-                                eval_const(&p->q1.val,MAXINT);
-                                am->offset=zm2l(vmax);
-                                if(p->q1.flags&VARADR)
-                                    am->v=p->q1.v;
-                                else
-                                    am->v=0;
-                                p->code=c=NOP;p->q1.flags=p->q2.flags=p->z.flags=0;
-                            }
-                            if(dub){
-                                dub->z=*o;
-                                dub->z.am=mymalloc(sizeof(*am));
-                                *dub->z.am=*o->am;
-                            }
-                            if(free_idx) move_IC(use,free_idx);
-                            if(free_base) move_IC(use,free_base);
-                        }
-                        break;
-                    }
-                    if(c2!=FREEREG&&m==base) break;
-                    continue;
-                }
-            }
-        }
-    }
-}
 
 static void pr(FILE *f,struct IC *p)
 {
@@ -2447,8 +2142,13 @@ static void function_top(FILE *f,struct Var *v,long offset)
     libsave=1;
     hasretval=0;
 
-    if(!optsize||(v->tattr&NOCOMPRESS)) emit(f,";vcprmin=10000\n");
-    if(vlas) emit(f,"___fo\tset\t%ld\n",(long)argsize);
+/* JL junk
+    if(!optsize||(v->tattr&NOCOMPRESS)) 
+        emit(f,";vcprmin=10000\n");
+    if(vlas) 
+        emit(f,"___fo\tset\t%ld\n",(long)argsize);
+*/
+
     r=0;
     for(i=FIRST_GPR;i<=LAST_GPR;i++){
         if((regused[i]&&(in_isr||!regscratch[i]))||(in_isr&&function_calls&&regscratch[i]&&!regsa[i])){
@@ -3615,6 +3315,8 @@ static int handle_m65(FILE *f,IC *p)
 /*  offset is the size of the stackframe the function   */
 /*  needs for local variables.                          */
 
+void pric2(FILE *f,IC *p);
+
 void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
     /*  The main code-generation.                                           */
 {
@@ -3624,6 +3326,17 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
     static char *dbgfile;
     static int dbgline;
 
+    fprintf(stdout,"; ===== ");
+    pric2(stdout,p);
+    emit(stdout,"\n");
+
+    // func uses variable length arrays
+    /*
+    FPVLA_REG - An additional register used in functions containing vlas. The backend can
+    specify a register (usually framepointer) that can not be used in functions with
+    vlas. Therefore, it is possible to use this register in other functions (for example,
+    if local variables are usually addressed directly through the stackpointer).
+    */
     if(vlas){
         fp=FPVLA_REG;
         if(!reg_pair(fp,&rp)) ierror(0);
@@ -3662,7 +3375,7 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
         for(c=1;c<=MAXR;c++) regs[c]=0; /*regsa[c];*/
         maxpushed=0;
 
-        /*FIXME*/
+        /*FIXME*/  // JL NO INTERRUPT SUPPORTED
         if(v->tattr&INTERRUPT){
             ret="\trti\n";
             in_isr=1;
@@ -3670,8 +3383,6 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
             ret="\trts\n";
             in_isr=0;
         }
-
-        if(!nopeep) peephole(pass==0?p:mi);
 
         function_top(f,v,localsize);
 
@@ -3682,8 +3393,12 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)
         dbgfile=0;
         dbgline=0;
 
-        for(p=pass==0?p:mi;p;pr(f,p),p=p->next){
+        for(p=pass==0?p:mi; p; pr(f,p),p=p->next){
 
+
+    fprintf(stdout,"\t; ====> ");
+    pric2(stdout,p);
+    emit(stdout,"\n");
 
 
             if(DEBUG&1) pric2(stdout,p);
@@ -5672,267 +5387,6 @@ enum peepf { NEEDSAME = 1, REMOVE1ST = 2};
 struct peeps {char *s1,*s2,*r;enum peepf flags;};
 
 
-
-int emit_peephole(void)
-{
-    int entries,i,j;
-    char *asmline[EMIT_BUF_DEPTH];
-    char buf1[1024],buf2[1024];
-    char op1[8],op2[8];
-    static char ca[1024],cx[1024],cy[1024],cz[1024];
-    static int rm,disabled;
-
-    static struct peeps elim[]={
-        "lda","sta",0,NEEDSAME,
-        "ldx","stx",0,NEEDSAME,
-        "ldy","sty",0,NEEDSAME,
-        "ldz","stz",0,NEEDSAME,
-        "ldq","stq",0,NEEDSAME,
-        "sta","sta",0,NEEDSAME,
-        "stx","stx",0,NEEDSAME,
-        "sty","sty",0,NEEDSAME,
-        "stz","stz",0,NEEDSAME,
-        "stq","stq",0,NEEDSAME,
-        "sta","lda",0,NEEDSAME,
-        "stx","ldx",0,NEEDSAME,
-        "sty","ldy",0,NEEDSAME,
-        "stz","ldz",0,NEEDSAME,
-        "stq","ldq",0,NEEDSAME,
-        "txa","tax",0,0,
-        "tax","txa",0,0,
-        "tay","tya",0,0,
-        "tya","tay",0,0,
-        "tza","taz",0,0,
-        "taz","tza",0,0,
-        "lda","lda",0,REMOVE1ST,
-        "ldx","ldx",0,REMOVE1ST,
-        "ldy","ldy",0,REMOVE1ST,
-        "ldz","ldz",0,REMOVE1ST,
-        "ldq","ldq",0,REMOVE1ST,
-        "lda","ldq",0,REMOVE1ST,
-        "ldx","ldq",0,REMOVE1ST,
-        "ldy","ldq",0,REMOVE1ST,
-        "lda","pla",0,REMOVE1ST,
-        "ldx","plx",0,REMOVE1ST,
-        "ldy","ply",0,REMOVE1ST,
-        "ldz","plz",0,REMOVE1ST,
-        "lda","txa",0,REMOVE1ST,
-        "lda","tya",0,REMOVE1ST,
-        "lda","tza",0,REMOVE1ST,
-        "ldx","tax",0,REMOVE1ST,
-        "ldy","tay",0,REMOVE1ST,
-        "ldz","taz",0,REMOVE1ST,
-        "tay","ldy",0,REMOVE1ST,
-        "tax","ldx",0,REMOVE1ST,
-        "taz","ldz",0,REMOVE1ST,
-        "txa","lda",0,REMOVE1ST,
-        "tya","lda",0,REMOVE1ST,
-        "tza","lda",0,REMOVE1ST,
-        "lda","ldx","\ttax\n",NEEDSAME,
-        "lda","ldy","\ttay\n",NEEDSAME,
-        "lda","ldz","\ttaz\n",NEEDSAME,
-        "ldx","lda","\ttxa\n",NEEDSAME,
-        "ldy","lda","\ttya\n",NEEDSAME,
-        "ldz","lda","\ttza\n",NEEDSAME,
-        "sta","ldx","\ttax\n",NEEDSAME,
-        "sta","ldy","\ttay\n",NEEDSAME,
-        "sta","ldz","\ttaz\n",NEEDSAME,
-        "stx","lda","\ttxa\n",NEEDSAME,
-        "sty","lda","\ttya\n",NEEDSAME,
-        "stz","lda","\ttza\n",NEEDSAME, /* must be last */
-    };
-
-    if(nopeep) return 0;
-
-    /* activate optimization that is not valid for c02 */
-    if(!ce02) elim[sizeof(elim)/sizeof(elim[0])-1].r="\tlda\t#0\n";
-
-    i=emit_l;
-    if(emit_f==0)
-        entries=i-emit_f+1;
-    else
-        entries=EMIT_BUF_DEPTH;
-    asmline[0]=emit_buffer[i];
-
-    if(!strcmp(asmline[0],";startinline\n")) disabled=1;
-    if(!strcmp(asmline[0],";endinline\n")) disabled=0;
-    if(disabled) return 0;
-
-    buf1[0]=0;op1[0]=0;
-    if((j=sscanf(asmline[0]," %6s %999s",op1,buf1))>=1){
-        /*printf("a=%s x=%s y=%s z=%s\n",ca,cx,cy,cz);
-          printf("\t\t%s %s\n",op1,buf1);*/
-        if(!strcmp(op1,"lda")){
-            if(buf1[0]=='#'){
-                if(!rm&&!strcmp(buf1,ca)){remove_asm();return rm=1;}
-                if(!rm&&!strcmp(buf1,cx)){strcpy(asmline[0],"\ttxa\n");return rm=1;}
-                if(!rm&&!strcmp(buf1,cy)){strcpy(asmline[0],"\ttya\n");return rm=1;}
-                if(!rm&&!strcmp(buf1,cz)){strcpy(asmline[0],"\ttza\n");return rm=1;}
-                strcpy(ca,buf1);
-            }else ca[0]=0;
-        }else if(!strcmp(op1,"ldx")){
-            if(buf1[0]=='#'){
-                if(!rm&&!strcmp(buf1,cx)){remove_asm();return rm=1;}
-                if(!rm&&!strcmp(buf1,ca)){strcpy(asmline[0],"\ttax\n");return rm=1;}
-                strcpy(cx,buf1);
-            }else cx[0]=0;
-        }else if(!strcmp(op1,"ldy")){
-            if(buf1[0]=='#'){
-                if(!rm&&!strcmp(buf1,cy)){remove_asm();return rm=1;}
-                if(!rm&&!strcmp(buf1,ca)){strcpy(asmline[0],"\ttay\n");return rm=1;}
-                strcpy(cy,buf1);
-            }else cy[0]=0;
-        }else if(!strcmp(op1,"ldz")){
-            if(buf1[0]=='#'){
-                if(!rm&&!strcmp(buf1,cz)){remove_asm();return rm=1;}
-                if(!rm&&!strcmp(buf1,ca)){strcpy(asmline[0],"\ttaz\n");return rm=1;}
-                strcpy(cz,buf1);
-            }else cz[0]=0;
-        }else{
-            static char clobbernone[]="asw bit clc cld cli clv cmp cpx cpy dec deq dew inc inq inw nop pha php phw phz plp sec sed sei sta stq stx sty";
-            static char clobbera[]="adc and asl asr eor lsr ora pla rol ror sbc txa tya tza";
-            static char clobberx[]="dex inx tax tsx";
-            static char clobbery[]="dey iny tay";
-            static char clobberz[]="dez inz taz";
-            if(strstr(clobbernone,op1)){
-            }else if(strstr(clobbera,op1))
-                ca[0]=0;
-            else if(strstr(clobberx,op1))
-                cx[0]=0;
-            else if(strstr(clobbery,op1))
-                cy[0]=0;
-            else if(strstr(clobberz,op1))
-                cz[0]=0;
-            else
-                ca[0]=cx[0]=cy[0]=cz[0]=0;
-        }
-    }else{
-        ca[0]=cx[0]=cy[0]=cz[0]=0;
-    }
-
-    rm=0;
-
-    if(sscanf(asmline[0]," %6s %999s",op1,buf1)==2&&!strcmp(op1,"and")&&!strcmp(buf1,"#0")){
-        strcpy(asmline[0],"\tlda\t#0\n");
-        return rm=1;
-    }
-
-    if(entries>=2){
-        i--;
-        if(i<0) i=EMIT_BUF_DEPTH-1;
-        asmline[1]=emit_buffer[i];
-
-
-        if(!strcmp(asmline[0],"; volatile barrier\n")&&!strcmp(asmline[0],asmline[1])){
-            remove_asm();
-            return rm=1;
-        }
-
-        if(sscanf(asmline[0]," %6s",op1)==1&&!strcmp(op1,"rts")&&
-                sscanf(asmline[1]," %6s %999s",op2,buf2)==2&&!strcmp(op2,"jsr")){
-            sprintf(asmline[1],"\tjmp\t%s\n",buf2);
-            remove_asm();
-            return rm=1;
-        }
-
-        for(j=0;j<sizeof(elim)/sizeof(elim[0]);j++){
-            if(elim[j].flags&NEEDSAME){
-                if(sscanf(asmline[0]," %6s %999s",op2,buf2)==2&&
-                        sscanf(asmline[1]," %6s %999s",op1,buf1)==2&&
-                        !strcmp(op1,elim[j].s1)&&!strcmp(op2,elim[j].s2)&&
-                        !strcmp(buf1,buf2)){
-                    if(elim[j].r){
-                        strcpy(asmline[0],elim[j].r);
-                    }else{
-                        if(elim[j].flags&REMOVE1ST)
-                            strcpy(asmline[1],asmline[0]);
-                        remove_asm();
-                    }
-                    return rm=1;
-                }
-            }else{
-                if(sscanf(asmline[1]," %6s",op1)==1&&
-                        sscanf(asmline[0]," %6s",op2)==1&&
-                        !strcmp(op1,elim[j].s1)&&!strcmp(op2,elim[j].s2)){
-                    if(elim[j].flags&REMOVE1ST)
-                        strcpy(asmline[1],asmline[0]);
-                    remove_asm();
-                    return rm=1;
-                }
-            }
-        }
-
-
-    }
-
-    if(entries>=3){
-        i--;
-        if(i<0) i=EMIT_BUF_DEPTH-1;
-        asmline[2]=emit_buffer[i];
-        if(sscanf(asmline[0]," %6s %999s",op1,buf1)==2){
-#if 0
-            if(!strcmp(op1,"lda")&&buf1[0]=='#'){
-                if(sscanf(asmline[1]," %6s %999s",op2,buf2)==2&&
-                        !strcmp(op2,"sta")){
-                    if(sscanf(asmline[2]," %6s %999s",op2,buf2)==2&&
-                            !strcmp(op2,"lda")&&!strcmp(buf1,buf2)){
-                        remove_asm();
-                        return rm=1;
-                    }
-                }
-            }
-#endif
-            if(!strcmp(op1,"beq")||!strcmp(op1,"bne")){
-                if(sscanf(asmline[1]," %6s %999s",op2,buf2)==2&&
-                        !strcmp(op2,"cmp")&&!strcmp(buf2,"#0")){
-                    if(sscanf(asmline[2]," %6s",op2)==1&&
-                            setszflag(op2)){
-                        strcpy(asmline[1],asmline[0]);
-                        remove_asm();
-                        return rm=1;
-                    }
-                }
-            }
-            if(!strcmp(op1,"beq")||!strcmp(op1,"bne")){
-                if(sscanf(asmline[1]," %6s %999s",op2,buf2)==2&&
-                        !strcmp(op2,"cpx")&&!strcmp(buf2,"#0")){
-                    if(sscanf(asmline[2]," %6s",op2)==1&&
-                            setszxflag(op2)){
-                        strcpy(asmline[1],asmline[0]);
-                        remove_asm();
-                        return rm=1;
-                    }
-                }
-            }
-        }
-    }
-    if(entries>=4){
-        i--;
-        if(i<0) i=EMIT_BUF_DEPTH-1;
-        asmline[3]=emit_buffer[i];
-    }
-    if(entries>=5){
-        i--;
-        if(i<0) i=EMIT_BUF_DEPTH-1;
-        asmline[4]=emit_buffer[i];
-        if(sscanf(asmline[0]," %s %s",op1,buf1)>=1){
-            if(!strcmp(op1,"lda")||!strcmp(op1,"pla")||!strcmp(op1,"txa")||!strcmp(op1,"tya")){
-                if(sscanf(asmline[1]," %s %s",op1,buf1)>=1&&!strcmp(op1,"pla")&&
-                        sscanf(asmline[2]," %s %s",op1,buf1)>=1&&!strcmp(op1,"tay")&&
-                        sscanf(asmline[3]," %s %s",op1,buf1)>=1&&!strcmp(op1,"txa")&&
-                        sscanf(asmline[4]," %s %s",op1,buf1)>=1&&!strcmp(op1,"pha")){
-                    strcpy(asmline[4],asmline[3]);
-                    strcpy(asmline[3],asmline[2]);
-                    strcpy(asmline[2],asmline[0]);
-                    remove_asm();
-                    remove_asm();
-                    return rm=1;
-                }
-            }
-        }
-    }
-    return 0;
-}
 
 /* Return name of library function, if this node should be
    implemented via libcall. */

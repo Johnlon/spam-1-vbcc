@@ -100,11 +100,12 @@ union atyps{
 /*  addressing-modes.                                               */
 /*  Currently possible are (const,gpr) and (gpr,gpr)                */
 struct AddressingMode{ // TODO JL DESTROY
-  int flags;
-  int base;
-  int idx;      // ?? no doco
-  long offset;
-  void *v;
+    int notused;
+//  int flags;
+//  int base;
+//  int idx;      // ?? no doco
+//  long offset;
+//  void *v;
 };
 
 /*  The number of registers of the target machine.                  */
@@ -181,7 +182,7 @@ struct reg_handle{
 #define EMIT_BUF_DEPTH 8
 
 /*  We have no asm_peephole to optimize assembly-output */
-#define HAVE_TARGET_PEEPHOLE 1 // TODO - JL CHANGE TO 0 WHEN SUSSED
+#define HAVE_TARGET_PEEPHOLE 0 // TODO - JL CHANGE TO 0 WHEN SUSSED
 
 /* we do not have a mark_eff_ics function, this is used to prevent
    optimizations on code which can already be implemented by efficient

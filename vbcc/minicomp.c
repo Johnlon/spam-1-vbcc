@@ -33,10 +33,13 @@ void raus(void)
 
   cleanup_cg(out);
 
-  if(errors>0)
+  if(errors>0) {
+    puts("ERROR");
     exit(EXIT_FAILURE);
-  else
+  } else {
+    puts("OK");
     exit(EXIT_SUCCESS);
+  }
 }
 
 main(int argc,char **argv)

@@ -112,9 +112,9 @@ int reg_prio[MAXR+1];
  */
 int init_cg(void){
 
-    #ifdef DEBUG_MARK
+#ifdef DEBUG_MARK
     printf("Called init_cg()\n");
-    #endif
+#endif
 
     int i;
 
@@ -254,9 +254,9 @@ int init_cg(void){
 }
 
 void cleanup_cg(FILE *f){
-    #ifdef DEBUG_MARK
+#ifdef DEBUG_MARK
     printf("Called cleanup_cg()\n");
-    #endif
+#endif
 }
 
 /*
@@ -319,10 +319,10 @@ int shortcut(int code,int typ){
  *  needs for local variables.
  */
 void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset){
-    #ifdef DEBUG_MARK
+#ifdef DEBUG_MARK
     printf("Called gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset)\n");
     printf("\tIdentifier: %s", v->identifier);
-    #endif
+#endif
 
     //emit function head
     if(v->storage_class==EXTERN){
@@ -382,28 +382,28 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset){
     for(;p;p=p->next){
         int c = p->code;
 
-        #ifdef DEBUG_MARK
+#ifdef DEBUG_MARK
         emit(f, "\n\t;p->code: %d\n", p->code);
-        #endif
+#endif
 
         switch(p->code){
             case ASSIGN:
-                #ifdef DEBUG_MARK
+#ifdef DEBUG_MARK
                 printf("\n\tASSIGN\n\tz.flags:%d\tq1.flags:%d\ttypf:%d\n", p->z.flags, p->q1.flags, p->typf);
-                #endif
+#endif
 
                 //we can simplify assign when both operands are in registers
                 if((((p->q1.flags) & (KONST|VAR|REG|DREFOBJ|VARADR)) == REG) &&
-                   (((p->z.flags) & (KONST|VAR|REG|DREFOBJ|VARADR)) == REG) ){
+                        (((p->z.flags) & (KONST|VAR|REG|DREFOBJ|VARADR)) == REG) ){
                     emit(f, "\tOR   \t %s %s %s",regnames[R0], regnames[p->q1.reg], regnames[p->z.reg]);
                 }
 
                 //this is another optimalization, if have to assign zero; then
                 //zero is read from R0 insted pushing constant into register
                 else if(
-                (((p->q1.flags) & (KONST|VAR|REG|DREFOBJ|VARADR)) == KONST) &&
-                ((p->q1.val.vmax) == 0)
-                ){
+                        (((p->q1.flags) & (KONST|VAR|REG|DREFOBJ|VARADR)) == KONST) &&
+                        ((p->q1.val.vmax) == 0)
+                       ){
                     store_from_reg(f, R0, &(p->z), p->typf, R2, R3);
                 }
 
@@ -414,86 +414,86 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset){
 
                 break;
             case OR:
-                #ifdef DEBUG_MARK
+#ifdef DEBUG_MARK
                 printf("\n\tOR\n");
-                #endif
+#endif
                 arithmetic(f, p);
                 break;
             case XOR:
-                #ifdef DEBUG_MARK
+#ifdef DEBUG_MARK
                 printf("\n\tXOR\n");
-                #endif
+#endif
                 arithmetic(f, p);
                 break;
             case AND:
-                #ifdef DEBUG_MARK
+#ifdef DEBUG_MARK
                 printf("\n\tAND\n");
-                #endif
+#endif
                 arithmetic(f, p);
                 break;
             case LSHIFT:
-                #ifdef DEBUG_MARK
+#ifdef DEBUG_MARK
                 printf("\n\tLSHIFT\n");
-                #endif
+#endif
                 arithmetic(f, p);
                 break;
             case RSHIFT:
-                #ifdef DEBUG_MARK
+#ifdef DEBUG_MARK
                 printf("\n\tRSHIFT\n");
-                #endif
+#endif
                 arithmetic(f, p);
                 break;
             case ADD:
-                #ifdef DEBUG_MARK
+#ifdef DEBUG_MARK
                 printf("\n\tADD\n");
-                #endif
+#endif
                 arithmetic(f, p);
                 break;
             case SUB:
-                #ifdef DEBUG_MARK
+#ifdef DEBUG_MARK
                 printf("\n\tSUB\n");
-                #endif
+#endif
                 arithmetic(f, p);
                 break;
             case MULT:
-                #ifdef DEBUG_MARK
+#ifdef DEBUG_MARK
                 printf("\n\tMULT\n");
-                #endif
+#endif
                 arithmetic(f, p);
                 break;
             case DIV:
-                #ifdef DEBUG_MARK
+#ifdef DEBUG_MARK
                 printf("\n\tDIV\n");
-                #endif
+#endif
                 arithmetic(f, p);
                 break;
             case MOD:
-                #ifdef DEBUG_MARK
+#ifdef DEBUG_MARK
                 printf("\n\tMOD\n");
-                #endif
+#endif
                 arithmetic(f, p);
                 break;
             case KOMPLEMENT:
-                #ifdef DEBUG_MARK
+#ifdef DEBUG_MARK
                 printf("\n\tKOMPLEMENT\n");
-                #endif
+#endif
                 arithmetic(f, p);
                 break;
             case MINUS:
-                #ifdef DEBUG_MARK
+#ifdef DEBUG_MARK
                 printf("\n\tMINUS\n");
-                #endif
+#endif
                 arithmetic(f, p);
                 break;
             case ADDRESS:
-                #ifdef DEBUG_MARK
+#ifdef DEBUG_MARK
                 printf("\n\tADDRESS\n");
-                #endif
+#endif
 
                 if(
-                (((p->q1.flags) & (KONST|VAR|REG|DREFOBJ|VARADR)) == VAR) &&
-                (((p->q1.v->storage_class) & (AUTO|REGISTER|STATIC|EXTERN)) == AUTO)
-                ){
+                        (((p->q1.flags) & (KONST|VAR|REG|DREFOBJ|VARADR)) == VAR) &&
+                        (((p->q1.v->storage_class) & (AUTO|REGISTER|STATIC|EXTERN)) == AUTO)
+                  ){
                     if(ISARRAY(p->q1.v->flags)){
                         load_cons(f, R1, zm2l(p->q1.v->offset)+zm2l(p->q1.val.vmax));
                     }
@@ -509,9 +509,9 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset){
 
                 break;
             case CALL:
-                #ifdef DEBUG_MARK
+#ifdef DEBUG_MARK
                 printf("\n\tCALL\n\tq1.flags: %d\n", p->q1.flags);
-                #endif
+#endif
 
                 if((p->q1.flags & (VAR|DREFOBJ)) == VAR && p->q1.v->fi && p->q1.v->fi->inline_asm){
                     emit_inline_asm(f,p->q1.v->fi->inline_asm);
@@ -520,9 +520,9 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset){
 
                     if(((p->q1.flags) & (KONST|VAR|REG|DREFOBJ|VARADR)) == VAR){
 
-                        #ifdef DEBUG_MARK
+#ifdef DEBUG_MARK
                         printf("\tq1.v->storage_class: %d\n", p->q1.v->storage_class);
-                        #endif
+#endif
 
                         switch((p->q1.v->storage_class) & (AUTO|REGISTER|STATIC|EXTERN)){
                             case EXTERN:
@@ -538,203 +538,203 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset){
                                 }
                                 break;
                             default:
-                                #ifdef DEBUG_MARK
+#ifdef DEBUG_MARK
                                 printf("\tThis is not implemented!\n");
-                                #else
+#else
                                 ierror(0);
-                                #endif
+#endif
                                 break;
                         }
 
                     }
                     else if(((p->q1.flags) & (KONST|VAR|REG|DREFOBJ|VARADR)) == (VAR|DREFOBJ)){
-                        #ifdef DEBUG_MARK
+#ifdef DEBUG_MARK
                         printf("\tq1.v->storage_class: %d\n", p->q1.v->storage_class);
-                        #endif                        
+#endif                        
                         load_into_reg(f, R1, &(p->q1), p->typf, R3);
                         emit(f, "\tCALLI\t %s\n", regnames[R1]);                        
                         emit(f, "\tINC \t %s %s\n", regnames[SP], regnames[SP]);                        
                     }
                     else{
-                        #ifdef DEBUG_MARK
+#ifdef DEBUG_MARK
                         printf("\tThis is not implemented!\n");
-                        #else
+#else
                         ierror(0);
-                        #endif
+#endif
                     }
                 }
                 break;
             case CONVERT:
-                #ifdef DEBUG_MARK
+#ifdef DEBUG_MARK
                 printf("\n\tCONVERT\n");
-                #endif
+#endif
 
                 break;
             case ALLOCREG:
-                #ifdef DEBUG_MARK
+#ifdef DEBUG_MARK
                 printf("\n\tALLOCREG\n");
-                #endif
+#endif
 
                 regs[p->q1.reg] = 1;
                 break;
             case FREEREG:
-                #ifdef DEBUG_MARK
+#ifdef DEBUG_MARK
                 printf("\n\tFREEREG\n");
-                #endif
+#endif
 
                 regs[p->q1.reg] = 0;
                 break;
             case COMPARE:
-                #ifdef DEBUG_MARK
+#ifdef DEBUG_MARK
                 printf("\n\tCOMPARE\n");
-                #endif
+#endif
 
                 compare(f, p);
                 break;
             case TEST:
-                #ifdef DEBUG_MARK
+#ifdef DEBUG_MARK
                 printf("\n\tTEST\n");
-                #endif
+#endif
 
                 compare(f, p);
                 break;
             case LABEL:
-                #ifdef DEBUG_MARK
+#ifdef DEBUG_MARK
                 printf("\n\tLABEL\n");
-                #endif
+#endif
 
                 emit(f,"L_%d:\n",p->typf);
                 break;
             case BEQ:
-                #ifdef DEBUG_MARK
+#ifdef DEBUG_MARK
                 printf("\n\tBEQ\n");
-                #endif
+#endif
 
                 emit(f, "\tBNZ \t R4 L_%d\n", p->typf);
                 break;
             case BNE:
-                #ifdef DEBUG_MARK
+#ifdef DEBUG_MARK
                 printf("\n\tBNE\n");
-                #endif
+#endif
 
                 emit(f, "\tBNZ \t R4 L_%d\n", p->typf);
                 break;
             case BLT:
-                #ifdef DEBUG_MARK
+#ifdef DEBUG_MARK
                 printf("\n\tBLT\n");
-                #endif
+#endif
 
                 emit(f, "\tBNZ \t R4 L_%d\n", p->typf);
                 break;
             case BGE:
-                #ifdef DEBUG_MARK
+#ifdef DEBUG_MARK
                 printf("\n\tBGE\n");
-                #endif
+#endif
 
                 emit(f, "\tBNZ \t R4 L_%d\n", p->typf);
                 break;
             case BLE:
-                #ifdef DEBUG_MARK
+#ifdef DEBUG_MARK
                 printf("\n\tBLE\n");
-                #endif
+#endif
 
                 emit(f, "\tBNZ \t R4 L_%d\n", p->typf);
                 break;
             case BGT:
-                #ifdef DEBUG_MARK
+#ifdef DEBUG_MARK
                 printf("\n\tBGT\n");
-                #endif
+#endif
 
                 emit(f, "\tBNZ \t R4 L_%d\n", p->typf);
                 break;
             case BRA:
-                #ifdef DEBUG_MARK
+#ifdef DEBUG_MARK
                 printf("\n\tBRA\n");
-                #endif
+#endif
 
                 emit(f, "\tBZ   \t R0 L_%d\n", p->typf);
                 break;
             case PUSH:
-                #ifdef DEBUG_MARK
+#ifdef DEBUG_MARK
                 printf("\n\tPUSH\n");
-                #endif
+#endif
 
                 load_into_reg(f, R1, &(p->q1), p->typf, R2);
                 emit(f, "\tPUSH \t R1\n");
                 break;
             case ADDI2P:
-                #ifdef DEBUG_MARK
+#ifdef DEBUG_MARK
                 printf("\n\tADDI2P\n");
-                #endif
+#endif
                 arithmetic(f, p);
                 break;
             case SUBIFP:
-                #ifdef DEBUG_MARK
+#ifdef DEBUG_MARK
                 printf("\n\tSUBIFP\n");
-                #endif
+#endif
                 arithmetic(f, p);
                 break;
             case SUBPFP:
-                #ifdef DEBUG_MARK
+#ifdef DEBUG_MARK
                 printf("\n\tSUBPFP\n");
-                #endif
+#endif
                 arithmetic(f, p);
                 break;
             case GETRETURN:
-                #ifdef DEBUG_MARK
+#ifdef DEBUG_MARK
                 printf("\n\tGETRETURN\n");
-                #endif
+#endif
                 if((p->q1.reg) != 0){
                     store_from_reg(f, p->q1.reg, &(p->z), p->typf, R2, R3);
                 }
                 else{
-                    #ifdef DEBUG_MARK
+#ifdef DEBUG_MARK
                     printf("\tq1.reg == 0, didn't know how to dealt with it!");
-                    #else
+#else
                     ierror(0);
-                    #endif
+#endif
                 }
                 break;
             case SETRETURN:
-                #ifdef DEBUG_MARK
+#ifdef DEBUG_MARK
                 printf("\n\tSETRETURN\n\tz.flags:%d\n", p->z.flags);
-                #endif
+#endif
                 if((p->z.reg) != 0){
                     load_into_reg(f, p->z.reg, &(p->q1), p->typf, R1);
                 }
                 else{
-                    #ifdef DEBUG_MARK
+#ifdef DEBUG_MARK
                     printf("\tz.reg == 0, didn't know how to dealt with it!");
-                    #else
+#else
                     ierror(0);
-                    #endif
+#endif
                 }
                 break;
             case MOVEFROMREG:
-                #ifdef DEBUG_MARK
+#ifdef DEBUG_MARK
                 printf("\n\tMOVEFROMREG\n");
-                #endif
+#endif
 
                 store_from_reg(f, p->q1.reg, &(p->z), p->typf, R1, R3);
                 break;
             case MOVETOREG:
-                #ifdef DEBUG_MARK
+#ifdef DEBUG_MARK
                 printf("\n\tMOVETOREG\n");
-                #endif
+#endif
 
                 load_into_reg(f, p->z.reg, &(p->q1), p->typf, R1);
                 break;
             case NOP:
-                #ifdef DEBUG_MARK
+#ifdef DEBUG_MARK
                 printf("\n\tNOP\n");
-                #endif
+#endif
                 break;
             default:
-                #ifdef DEBUG_MARK
+#ifdef DEBUG_MARK
                 printf("\tSomething is wrong in gencode()!\n");
-                #else
+#else
                 ierror(0);
-                #endif
+#endif
                 break;
         }
     }
@@ -767,9 +767,9 @@ void gen_code(FILE *f,struct IC *p,struct Var *v,zmax offset){
  *  initialized with zero.
  */
 void gen_ds(FILE *f,zmax size,struct Typ *t){
-    #ifdef DEBUG_MARK
+#ifdef DEBUG_MARK
     printf("Called gen_ds(FILE *f,zmax size,struct Typ *t)\n");
-    #endif
+#endif
     emit(f, "\t.DS \t%ld\n", zm2l(size));
 }
 
@@ -785,21 +785,21 @@ void gen_align(FILE *f,zmax align){}
  *  linkage etc.
  */
 void gen_var_head(FILE *f,struct Var *v){
-    #ifdef DEBUG_MARK
+#ifdef DEBUG_MARK
     printf("Called gen_var_head(FILE *f,struct Var *v)\n");
-    #endif
+#endif
 
     switch((v->storage_class) & (STATIC|EXTERN|AUTO|REGISTER)){
         case STATIC:
-            #ifdef DEBUG_MARK
+#ifdef DEBUG_MARK
             printf("\tHave to emit static variable head.\n");
-            #endif
+#endif
             emit(f,"L_%ld:\n", zm2l(v->offset));
             break;
         case EXTERN:
-            #ifdef DEBUG_MARK
+#ifdef DEBUG_MARK
             printf("\tHave to emit extern variable head.\n");
-            #endif
+#endif
 
             if(v->flags&(DEFINED|TENTATIVE)){
                 emit(f,".EXPORT \t %s\n", v->identifier);
@@ -810,11 +810,11 @@ void gen_var_head(FILE *f,struct Var *v){
             }
             break;
         default:
-            #ifdef DEBUG_MARK
+#ifdef DEBUG_MARK
             printf("\tCant generate head, unknown storage class: %d\n", v->storage_class);
-            #else
+#else
             ierror(0);
-            #endif
+#endif
             break;
     }
 }
@@ -824,9 +824,9 @@ void gen_var_head(FILE *f,struct Var *v){
  *  initialized with const-list p.
  */
 void gen_dc(FILE *f,int t,struct const_list *p){
-    #ifdef DEBUG_MARK
+#ifdef DEBUG_MARK
     printf("Called gen_dc(FILE *f,int t,struct const_list *p)\n");
-    #endif
+#endif
 
     if(!p->tree){
         if(ISFLOAT(t)){
@@ -1048,11 +1048,11 @@ void load_into_reg(FILE *f, int dest_reg, struct obj *o, int type, int tmp_reg){
                     }
                     break;
                 default:
-                    #ifdef DEBUG_MARK
+#ifdef DEBUG_MARK
                     printf("\tHave to load variable that is not static, extern or auto, this is not implemented!\n");
-                    #else
+#else
                     ierror(0);
-                    #endif
+#endif
                     break;
             }
 
@@ -1122,11 +1122,11 @@ void load_into_reg(FILE *f, int dest_reg, struct obj *o, int type, int tmp_reg){
                     }
                     break;
                 default:
-                    #ifdef DEBUG_MARK
+#ifdef DEBUG_MARK
                     printf("\tHave to load variable that is not static, extern or auto, this is not implemented!\n");
-                    #else
+#else
                     ierror(0);
-                    #endif
+#endif
                     break;
             }
 
@@ -1157,14 +1157,14 @@ void load_into_reg(FILE *f, int dest_reg, struct obj *o, int type, int tmp_reg){
                 load_cons(f, tmp_reg, o->val.vmax);
                 emit(f, "\tADD \t %s %s %s\n", regnames[dest_reg], regnames[tmp_reg], regnames[dest_reg]);              
             }
-            
+
             break;
         default:
-            #ifdef DEBUG_MARK
+#ifdef DEBUG_MARK
             printf("\tSomething is wrong while acuring operand!\n");
-            #else
+#else
             ierror(0);
-            #endif
+#endif
             break;
     }
 }
@@ -1237,11 +1237,11 @@ void store_from_reg(FILE *f, int source_reg, struct obj *o, int type, int tmp_re
                     }
                     break;
                 default:
-                    #ifdef DEBUG_MARK
+#ifdef DEBUG_MARK
                     printf("\tHave to store into variable that is not static, extern or auto, this is not implemented!\n");
-                    #else
+#else
                     ierror(0);
-                    #endif
+#endif
                     break;
             }
             break;
@@ -1306,11 +1306,11 @@ void store_from_reg(FILE *f, int source_reg, struct obj *o, int type, int tmp_re
                     }
                     break;
                 default:
-                    #ifdef DEBUG_MARK
+#ifdef DEBUG_MARK
                     printf("\tHave to store into variable that is not static, extern or auto, this is not implemented!\n");
-                    #else
+#else
                     ierror(0);
-                    #endif
+#endif
                     break;
             }
             break;
@@ -1333,11 +1333,11 @@ void store_from_reg(FILE *f, int source_reg, struct obj *o, int type, int tmp_re
             }
             break;
         default:
-            #ifdef DEBUG_MARK
+#ifdef DEBUG_MARK
             printf("\tCant store reg into object, unknown object!\n");
-            #else
+#else
             ierror(0);
-            #endif
+#endif
             break;
     }
 }
@@ -1410,11 +1410,11 @@ void arithmetic(FILE *f, struct IC *p){
                 q2reg = R2;
                 break;
             default:
-                #ifdef DEBUG_MARK
+#ifdef DEBUG_MARK
                 printf("This is not implemented!\n");
-                #else
+#else
                 ierror(0);
-                #endif
+#endif
                 break;
         }
     }
@@ -1488,11 +1488,11 @@ void arithmetic(FILE *f, struct IC *p){
                 emit(f, "\tNOT \t ");
                 break;
             default:
-                #ifdef DEBUG_MARK
+#ifdef DEBUG_MARK
                 printf("\tPassed invalid IC into arithmetic()\n\tp->code: %d\n", p->code);
-                #else
+#else
                 ierror(0);
-                #endif
+#endif
                 break;
         }
     }
