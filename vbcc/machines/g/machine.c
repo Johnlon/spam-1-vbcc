@@ -1010,20 +1010,6 @@ int findBranch(FILE *f, IC *p) {
 /*  offset is the size of the stackframe the function   */
 /*  needs for local variables.                          */
 
-/*
-void gen_codeJL(FILE *f, struct IC *p, struct Var *v, zmax offset)
-{
-  struct gc_state gc;
-  struct IC *node;
-
-  gc_func_begin(&gc, f, p, v, offset);
-  for (node=p; node; node=node->next)
-    gc_func_ic(&gc, node);
-  gc_func_end(&gc, f, p, v, offset);
-}
-*/
-
-
 void gen_code(FILE *f, struct IC *p, struct Var *v, zmax offset)
 /*  The main code-generation.                                           */
 {
