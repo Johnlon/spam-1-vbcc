@@ -3,7 +3,7 @@
 _main:
 
 ; ------ allocreg
-; ALLOCREG - gpr5
+; ALLOCREG - gpr6
 
 ; ------ allocreg
 ; ALLOCREG - gpr4
@@ -18,24 +18,24 @@ _main:
 
 ; ------ move
 ; ASSIGN/PUSH
-; ASSIGN l gpr5
-	[:gpr5+0] = #fe	
-	[:gpr5+1] = #fe	
-	[:gpr5+2] = #00	
-	[:gpr5+3] = #00	
+; ASSIGN l gpr6
+	[:gpr6+0] = #fe	
+	[:gpr6+1] = #fe	
+	[:gpr6+2] = #00	
+	[:gpr6+3] = #00	
 
 ; ------ compare
 ; COMPARE START ======================================================
-	; ORIGINAL ASM: 		cmp.l	gpr4,gpr5
+	; ORIGINAL ASM: 		cmp.l	gpr4,gpr6
 	; BRANCH-TYPE-WILL-BE bne
 	REGA=[:gpr4+3]
-	NOOP = REGA A_MINUS_B_SIGNEDMAG [:gpr5+3] _S
+	NOOP = REGA A_MINUS_B_SIGNEDMAG [:gpr6+3] _S
 	REGA=[:gpr4+2]
-	NOOP = REGA A_MINUS_B           [:gpr5+2] _EQ_S
+	NOOP = REGA A_MINUS_B           [:gpr6+2] _EQ_S
 	REGA=[:gpr4+1]
-	NOOP = REGA A_MINUS_B           [:gpr5+1] _EQ_S
+	NOOP = REGA A_MINUS_B           [:gpr6+1] _EQ_S
 	REGA=[:gpr4+0]
-	NOOP = REGA A_MINUS_B           [:gpr5+0] _EQ_S
+	NOOP = REGA A_MINUS_B           [:gpr6+0] _EQ_S
 	; aggregate flags into register
 	REGA=0
 	REGA = REGA A_OR_B 1 _LT
@@ -72,7 +72,7 @@ l4:
 
 ; ------ mul
 OR AND SHIFT MOD 
-	mullw.l	gpr4,gpr5,187
+	mullw.l	gpr4,gpr6,187
 
 ; ------ freereg
 ; FREEREG - gpr3

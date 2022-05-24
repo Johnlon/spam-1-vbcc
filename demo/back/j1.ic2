@@ -1,0 +1,4 @@
+function bar
+	allocreg r0
+	move int M0+_statOut(statOut)->r0(r) size=2
+L1

@@ -1,0 +1,235 @@
+;vcprmin=10000
+	section	text
+	global	_main
+_main:
+	sec
+	lda	sp
+	sbc	#14
+	sta	sp
+	bcs	l12
+	dec	sp+1
+l12:
+	; ldy	#13
+	REGC = 13
+	jsr	___rsave6
+	; do_hi
+	; do_hibyte lda
+	; lda
+	REGA = 0
+	; do_hi
+	; sety real
+	; ldy	#1
+	REGC = 1
+	; do_hibyte sta
+	; sta
+	[(sp),y] = REGA
+	; do_lobyte lda
+	; lda
+	REGA = 1
+	; dey
+	REGC = REGC - 1
+	; do_lobyte sta
+	; sta
+	[(sp),y] = REGA
+	; do_hi
+	; do_hibyte lda
+	; lda
+	REGA = 0
+	; do_hi
+	; do_hibyte sta
+	; sta
+	[r19] = REGA
+	; do_lobyte lda
+	; lda
+	REGA = 2
+	; do_lobyte sta
+	; sta
+	[r18] = REGA
+	; do_lobyte lda
+	; lda
+	REGA = (sp),y
+	clc
+	; do_lobyte adc
+
+	; do_lobyte sta
+	; sta
+	[r16] = REGA
+	; do_hi
+	; sety real
+	; iny
+	REGC = REGC + 1
+	; do_hibyte lda
+	; lda
+	REGA = (sp),y
+	; do_hi
+	; do_hibyte adc
+
+	; do_hi
+	; do_hibyte sta
+	; sta
+	[r17] = REGA
+	lda	sp
+	; do_lobyte sta
+	; sta
+	[r20] = REGA
+	lda	sp+1
+	; do_hi
+	; do_hibyte sta
+	; sta
+	[r21] = REGA
+	; do_hi
+	; do_hibyte lda
+	; lda
+	REGA = 0
+	; do_hi
+	; sety dref
+	; do_hibyte sta
+	; sta
+	[(r20),y] = REGA
+	; do_lobyte lda
+	; lda
+	REGA = 99
+	; dey
+	REGC = REGC - 1
+	; do_lobyte sta
+	; sta
+	[(r20),y] = REGA
+	jmp	l4
+l3:
+	; do_hi
+	; do_hibyte lda
+	; lda
+	REGA = <(l6)
+	; do_hi
+	; do_hibyte sta
+	; sta
+	[r1] = REGA
+	; do_lobyte lda
+	; lda
+	REGA = >(l6)
+	; do_lobyte sta
+	; sta
+	[r0] = REGA
+	jsr	_puts
+l4:
+	; do_hi
+	; do_hibyte ldx
+
+	; do_lobyte lda
+	; lda
+	REGA = r16
+	; sta	r31
+	[:r31] = REGA
+	; do_lobyte lda
+	; lda
+	REGA = r16
+	bne	l13
+	dec	r17
+l13:
+	dec	r16
+	; lda	r31
+	REGA = [:r31]
+	; pha
+	marlo = [:stack_ptr]
+	marhi = [:stack_ptr+1]
+	ram   = REGA
+	[:stack_ptr]   = marlo - 1 _S
+	[:stack_ptr+1] = marhi - 1 _C
+	sta	r31
+	; do_lobyte lda
+	; lda
+	REGA = 0
+	cmp	r31
+	stx	r31
+	; do_hi
+	; do_hibyte lda
+	; lda
+	REGA = 0
+	sbc	r31
+	bvc	l15
+	eor	#128
+l15:
+	bmi	l14
+	; pla
+	marlo = [:stack_ptr] + 1 _S
+	marhi = 0 A_PLUS_B_PLUS_C [:stack_ptr+1]
+	REGA = ram
+	[:stack_ptr]   = marlo
+	[:stack_ptr+1] = marhi
+l5:
+	; do_hi
+	; do_hibyte ldx
+
+	; do_lobyte lda
+	; lda
+	REGA = 0
+l1:
+	sta	r31
+	; ldy	#13
+	REGC = 13
+	jsr	___rload6
+	clc
+	lda	sp
+	adc	#14
+	sta	sp
+	bcc	l16
+	inc	sp+1
+l16:
+	; lda	r31
+	REGA = [:r31]
+	rts
+l14:
+	; pla
+	marlo = [:stack_ptr] + 1 _S
+	marhi = 0 A_PLUS_B_PLUS_C [:stack_ptr+1]
+	REGA = ram
+	[:stack_ptr]   = marlo
+	[:stack_ptr+1] = marhi
+	jmp	l3
+; stacksize=0+??
+	section	rodata
+l6:
+	byte	104
+	byte	101
+	byte	108
+	byte	108
+	byte	111
+	byte	0
+	global	_puts
+	zpage	sp
+	zpage	r0
+	zpage	r1
+	zpage	r2
+	zpage	r3
+	zpage	r4
+	zpage	r5
+	zpage	r6
+	zpage	r7
+	zpage	r8
+	zpage	r9
+	zpage	r10
+	zpage	r11
+	zpage	r12
+	zpage	r13
+	zpage	r14
+	zpage	r15
+	zpage	r16
+	zpage	r17
+	zpage	r18
+	zpage	r19
+	zpage	r20
+	zpage	r21
+	zpage	r22
+	zpage	r23
+	zpage	r24
+	zpage	r25
+	zpage	r26
+	zpage	r27
+	zpage	r28
+	zpage	r29
+	zpage	r30
+	zpage	r31
+	zpage	btmp0
+	zpage	btmp1
+	zpage	btmp2
+	zpage	btmp3

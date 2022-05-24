@@ -1,0 +1,253 @@
+ASM: 	.text
+ASM: 	.global	_main
+ASM: _main:
+
+=================================================================== NEW INST allocreg
+ASM: ; ------ allocreg
+
+DUMP...
+	DUMP code = allocreg(65)
+	DUMP z= <>
+	DUMP q1= < ISREG:gpr6>
+	DUMP q2= <>
+PRIC2...
+	allocreg gpr6
+-----
+ASM: ; ALLOCREG - gpr6
+
+=================================================================== NEW INST allocreg
+ASM: ; ------ allocreg
+
+DUMP...
+	DUMP code = allocreg(65)
+	DUMP z= <>
+	DUMP q1= < ISREG:gpr4>
+	DUMP q2= <>
+PRIC2...
+	allocreg gpr4
+-----
+ASM: ; ALLOCREG - gpr4
+
+=================================================================== NEW INST move
+ASM: ; ------ move
+
+DUMP...
+	DUMP code = move(2)
+	DUMP z= < ISREG:gpr4 VAR AUTO:0(gpr0)>
+	DUMP q1= < K:48815>
+	DUMP q2= <>
+PRIC2...
+	move long #L48815->gpr4(myLong) size=4
+-----
+ASM: ; ASSIGN/PUSH
+ASM: ; ASSIGN l gpr4
+ASM: 	[:gpr4+0] = #af	
+ASM: 	[:gpr4+1] = #be	
+ASM: 	[:gpr4+2] = #00	
+ASM: 	[:gpr4+3] = #00	
+
+=================================================================== NEW INST move
+ASM: ; ------ move
+
+DUMP...
+	DUMP code = move(2)
+	DUMP z= < ISREG:gpr6 VAR AUTO:4(gpr0)>
+	DUMP q1= < K:65278>
+	DUMP q2= <>
+PRIC2...
+	move long #L65278->gpr6(yourLong) size=4
+-----
+ASM: ; ASSIGN/PUSH
+ASM: ; ASSIGN l gpr6
+ASM: 	[:gpr6+0] = #fe	
+ASM: 	[:gpr6+1] = #fe	
+ASM: 	[:gpr6+2] = #00	
+ASM: 	[:gpr6+3] = #00	
+
+=================================================================== NEW INST compare
+ASM: ; ------ compare
+
+DUMP...
+	DUMP code = compare(77)
+	DUMP z= <>
+	DUMP q1= < ISREG:gpr4 VAR AUTO:0(gpr0)>
+	DUMP q2= < ISREG:gpr6 VAR AUTO:4(gpr0)>
+PRIC2...
+	compare long gpr4(myLong),gpr6(yourLong)
+-----
+ASM: ; COMPARE START ======================================================
+ASM: 	; ORIGINAL ASM: 		cmp.l	gpr4,gpr6
+ASM: 	; BRANCH-TYPE-WILL-BE bne
+ASM: 	REGA=[:gpr4+3]
+ASM: 	NOOP = REGA A_MINUS_B_SIGNEDMAG [:gpr6+3] _S
+ASM: 	REGA=[:gpr4+2]
+ASM: 	NOOP = REGA A_MINUS_B           [:gpr6+2] _EQ_S
+ASM: 	REGA=[:gpr4+1]
+ASM: 	NOOP = REGA A_MINUS_B           [:gpr6+1] _EQ_S
+ASM: 	REGA=[:gpr4+0]
+ASM: 	NOOP = REGA A_MINUS_B           [:gpr6+0] _EQ_S
+ASM: 	; aggregate flags into register
+ASM: 	REGA=0
+ASM: 	REGA = REGA A_OR_B 1 _LT
+ASM: 	REGA = REGA A_OR_B 2 _GT
+ASM: 	REGA = REGA A_OR_B 4 _NE
+ASM: 	REGA = REGA A_OR_B 8 _EQ
+
+=================================================================== NEW INST bne
+ASM: ; ------ bne
+
+DUMP...
+	DUMP code = bne(71)
+	DUMP z= <>
+	DUMP q1= <>
+	DUMP q2= <>
+PRIC2...
+	bne L4
+-----
+ASM: ; BRANCH BLOCK ne
+ASM: 	PCHI = <:l4
+ASM: 	PCLO = >:l4 _NE
+ASM: ; BRANCH TO LABEL l4
+
+=================================================================== NEW INST label
+ASM: ; ------ label
+
+DUMP...
+	DUMP code = label(69)
+	DUMP z= <>
+	DUMP q1= <>
+	DUMP q2= <>
+PRIC2...
+L3
+-----
+ASM: l3:
+
+=================================================================== NEW INST move
+ASM: ; ------ move
+
+DUMP...
+	DUMP code = move(2)
+	DUMP z= < ISREG:gpr4 VAR AUTO:0(gpr0)>
+	DUMP q1= < K:170>
+	DUMP q2= <>
+PRIC2...
+	move long #L170->gpr4(myLong) size=4
+-----
+ASM: ; ASSIGN/PUSH
+ASM: ; ASSIGN l gpr4
+ASM: 	[:gpr4+0] = #aa	
+ASM: 	[:gpr4+1] = #00	
+ASM: 	[:gpr4+2] = #00	
+ASM: 	[:gpr4+3] = #00	
+
+=================================================================== NEW INST bra
+ASM: ; ------ bra
+
+DUMP...
+	DUMP code = bra(76)
+	DUMP z= <>
+	DUMP q1= <>
+	DUMP q2= <>
+PRIC2...
+	bra L5
+-----
+ASM: 	PCHI = <:l5
+ASM: 	PCLO = >:l5
+
+=================================================================== NEW INST label
+ASM: ; ------ label
+
+DUMP...
+	DUMP code = label(69)
+	DUMP z= <>
+	DUMP q1= <>
+	DUMP q2= <>
+PRIC2...
+L4
+-----
+ASM: l4:
+
+=================================================================== NEW INST allocreg
+ASM: ; ------ allocreg
+
+DUMP...
+	DUMP code = allocreg(65)
+	DUMP z= <>
+	DUMP q1= < ISREG:gpr3>
+	DUMP q2= <>
+PRIC2...
+	allocreg gpr3
+-----
+ASM: ; ALLOCREG - gpr3
+
+=================================================================== NEW INST mul
+ASM: ; ------ mul
+
+DUMP...
+	DUMP code = mul(29)
+	DUMP z= < ISREG:gpr4 VAR AUTO:0(gpr0)>
+	DUMP q1= < ISREG:gpr6 VAR AUTO:4(gpr0)>
+	DUMP q2= < K:187>
+PRIC2...
+	mul long gpr6(yourLong),#L187->gpr4(myLong)
+-----
+ASM: OR AND SHIFT MOD 
+ASM: 	mullw.l	gpr4,gpr6,187
+
+=================================================================== NEW INST freereg
+ASM: ; ------ freereg
+
+DUMP...
+	DUMP code = freereg(66)
+	DUMP z= <>
+	DUMP q1= < ISREG:gpr3>
+	DUMP q2= <>
+PRIC2...
+	freereg gpr3
+-----
+ASM: ; FREEREG - gpr3
+
+=================================================================== NEW INST label
+ASM: ; ------ label
+
+DUMP...
+	DUMP code = label(69)
+	DUMP z= <>
+	DUMP q1= <>
+	DUMP q2= <>
+PRIC2...
+L5
+-----
+ASM: l5:
+
+=================================================================== NEW INST set-return
+ASM: ; ------ set-return
+
+DUMP...
+	DUMP code = set-return(94)
+	DUMP z= <>
+	DUMP q1= < K:99>
+	DUMP q2= <>
+PRIC2...
+	set-return int #I99
+-----
+ASM: ; SETRETURN - zreg = gpr3
+ASM: 	[:gpr3+0] = #63	
+ASM: 	[:gpr3+1] = #00	
+ASM: 	[:gpr3+2] = #00	
+ASM: 	[:gpr3+3] = #00	
+
+=================================================================== NEW INST label
+ASM: ; ------ label
+
+DUMP...
+	DUMP code = label(69)
+	DUMP z= <>
+	DUMP q1= <>
+	DUMP q2= <>
+PRIC2...
+L1
+-----
+ASM: l1:
+ASM: # stacksize=0+??
+OK

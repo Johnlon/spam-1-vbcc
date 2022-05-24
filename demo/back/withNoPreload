@@ -1,0 +1,42 @@
+======================================================= main
+! 3 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 111
+! 3 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 111
+! 3 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 111
+! 3 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 111
+! 3 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 111
+! 2 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 111
+! 4 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 111
+! 5 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 111
+ASM: 	.text
+ASM: 	.global	_main
+ASM: _main:
+ASM: 	mov.uc	noreg,11
+ASM: 	mov.uc	gpr6,noreg
+ASM: 	mov.l	noreg,33
+ASM: 	mov.l	gpr4,noreg
+ASM: 	mov.i	noreg,99
+ASM: 	mov.i	gpr5,noreg
+ASM: 	mov.l	noreg,gpr4
+ASM: 	add.l	noreg,32001
+ASM: 	mov.l	gpr5,noreg
+ASM: 	mov.uc	noreg,1
+ASM: 	mov.uc	gpr6,noreg
+ASM: 	zext.uc	noreg
+ASM: 	mov.i	gpr3,noreg
+ASM: 	mov.i	noreg,gpr3
+ASM: 	add.i	noreg,gpr5
+ASM: 	mov.i	gpr4,noreg
+ASM: l3:
+ASM: 	cmp.l	gpr4,0
+ASM: BRANCH BLOCK le
+ASM: 	PCHI = <:l5
+ASM: 	PCLO = >:l5 _LT
+ASM: 	PCLO = >:l5 _EQ
+ASM: BRANCH B NAME le
+ASM: 	ble	BRANCH LABEL
+ASM: l5
+ASM: l4:
+ASM: 	mov.l	noreg,22
+ASM: 	mov.l	gpr4,noreg
+ASM: l5:
+OK

@@ -1,0 +1,135 @@
+;vcprmin=10000
+	section	text
+	global	_main
+_main:
+	sec
+	lda	sp
+	sbc	#14
+	sta	sp
+	bcs	l12
+	dec	sp+1
+l12:
+	ldy	#13
+	jsr	___rsave6
+	lda	#0
+	ldy	#1
+	sta	(sp),y
+	lda	#1
+	dey
+	sta	(sp),y
+	lda	#0
+	sta	r19
+	lda	#2
+	sta	r18
+	lda	(sp),y
+	clc
+	adc	r18
+	sta	r16
+	iny
+	lda	(sp),y
+	adc	r19
+	sta	r17
+	lda	sp
+	sta	r20
+	lda	sp+1
+	sta	r21
+	lda	#0
+	sta	(r20),y
+	lda	#99
+	dey
+	sta	(r20),y
+	jmp	l4
+l3:
+	lda	#>(l6)
+	sta	r1
+	lda	#<(l6)
+	sta	r0
+	jsr	_puts
+l4:
+	ldx	r17
+	lda	r16
+	sta	r31
+	lda	r16
+	bne	l13
+	dec	r17
+l13:
+	dec	r16
+	lda	r31
+	pha
+	sta	r31
+	lda	#0
+	cmp	r31
+	stx	r31
+	lda	#0
+	sbc	r31
+	bvc	l15
+	eor	#128
+l15:
+	bmi	l14
+	pla
+l5:
+	ldx	#0
+	lda	#0
+l1:
+	sta	r31
+	ldy	#13
+	jsr	___rload6
+	clc
+	lda	sp
+	adc	#14
+	sta	sp
+	bcc	l16
+	inc	sp+1
+l16:
+	lda	r31
+	rts
+l14:
+	pla
+	jmp	l3
+; stacksize=0+??
+	section	rodata
+l6:
+	byte	104
+	byte	101
+	byte	108
+	byte	108
+	byte	111
+	byte	0
+	global	_puts
+	zpage	sp
+	zpage	r0
+	zpage	r1
+	zpage	r2
+	zpage	r3
+	zpage	r4
+	zpage	r5
+	zpage	r6
+	zpage	r7
+	zpage	r8
+	zpage	r9
+	zpage	r10
+	zpage	r11
+	zpage	r12
+	zpage	r13
+	zpage	r14
+	zpage	r15
+	zpage	r16
+	zpage	r17
+	zpage	r18
+	zpage	r19
+	zpage	r20
+	zpage	r21
+	zpage	r22
+	zpage	r23
+	zpage	r24
+	zpage	r25
+	zpage	r26
+	zpage	r27
+	zpage	r28
+	zpage	r29
+	zpage	r30
+	zpage	r31
+	zpage	btmp0
+	zpage	btmp1
+	zpage	btmp2
+	zpage	btmp3

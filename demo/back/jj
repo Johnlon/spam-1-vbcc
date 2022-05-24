@@ -1,0 +1,31 @@
+[ _foo xp
+	r0
+	r1
+	r2
+	r3
+	r4
+	r5
+;
+	@sub xp 0+7 -> xp;
+	@add xp 0+0 -> sp;
+	@call_vn __long_loadconst sp 0+0 0+256;
+	@add STATIC__4 0+0 -> sp;
+	@pull r1;
+	@add r1 0+2 -> r0;
+	@push r0;
+	@loadb sp 0 -> sp;
+	@pull r2;
+.L1;
+	@ret r0;
+]
+;
+Array STATIC__4 ->
+ (49)
+ (50)
+ (51)
+ (52)
+ (0)
+;Array _statOut ->
+ 2
+;[ __init_vars_;
+];
