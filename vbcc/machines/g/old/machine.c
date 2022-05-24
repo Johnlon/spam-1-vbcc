@@ -152,8 +152,8 @@ char *g_attr_name[] = {"__interrupt", 0};
 
 #define LOAD_STORE 0
 #define THREE_ADDR 1
-#define VOL_GPRS   (NUM_GPRS/2)
-#define VOL_FPRS   (NUM_FPRS/2)
+//#define VOL_GPRS   (NUM_GPRS/2)
+//#define VOL_FPRS   (NUM_FPRS/2)
 #define VOL_CCRS   (NUM_CCRS/2)
 #define IMM_IND    (0)
 #define GPR_IND    (0)
@@ -176,9 +176,9 @@ static char *marray[] = {"__section(x)=__vattr(\"section(\"#x\")\")",
                          0};
 
 /* special registers */
-static int sp;         /*  Stackpointer                        */
-static int t1, t2;//, t3; /*  temporary gprs */
-static int f1, f2;//, f3; /*  temporary fprs */
+static int sp=R_G0;          //  Stackpointer
+static int t1=R_G1, t2=R_G2; //, t3=R_G2; //  temporary gprs
+static int f1=R_F0, f2=R_F1; //, f3=R_F2; //  temporary fprs
 
 #define dt(t) (((t)&UNSIGNED) ? udt[(t)&NQ] : sdt[(t)&NQ])
 static char *sdt[MAX_TYPE + 1] = {"??", "c", "s", "i", "l", "ll", "f", "d", "ld", "v", "p"};
@@ -257,7 +257,7 @@ static void emit_obj(FILE *f, struct obj *p, int t);
 static long real_offset(struct obj *o) {
     long off = zm2l(o->v->offset);
     if (off < 0) {
-        /* function parameter */
+        //* function parameter */
         off = localsize + rsavesize + 4 - off - zm2l(maxalign);
     }
 
@@ -491,6 +491,7 @@ static int compare_objects(struct obj *o1, struct obj *o2) {
    registers etc. */
 // sets varios global variables that then influence gen_code << all incomprehensibe as usual
 static struct IC *preload(FILE *f, struct IC *p) {
+
     int r;
 
     if (isreg(q1))
@@ -503,7 +504,7 @@ static struct IC *preload(FILE *f, struct IC *p) {
     else
         q2reg = 0;
 
-    if (isreg(z) && (THREE_ADDR || !compare_objects(&p->q2, &p->z))) {
+    if (isreg(z)) {
         zreg = p->z.reg;
     } else {
         if (ISFLOAT(ztyp(p)))
@@ -511,6 +512,8 @@ static struct IC *preload(FILE *f, struct IC *p) {
         else
             zreg = t1;
     }
+
+    return p; // JL DISABLED REST
 
     if ((p->q1.flags & (DREFOBJ | REG)) == DREFOBJ && !p->q1.am) {
         p->q1.flags &= ~DREFOBJ;
@@ -696,10 +699,18 @@ int init_cg(void) {
     }
     for (i = R_F0; i <= R_FF; i++) {
         regnames[i] = mymalloc(10);
-        sprintf(regnames[i], "fpr%d", i - R_F0);
+        sprintf(regnames[i], "fpr%d", i - R_FF);
         regsize[i] = l2zm(8L);
         regtype[i] = &ldbl;
     }
+    /*
+    for(i=FIRST_CCR;i<=LAST_CCR;i++){
+        regnames[i]=mymalloc(10);
+        sprintf(regnames[i],"ccr%d",i-FIRST_CCR);
+        regsize[i]=l2zm(1L);
+        regtype[i]=&lchar;
+    }
+    */
 
     /*  Use multiple ccs.   */
     multiple_ccs = 0;
@@ -731,22 +742,28 @@ int init_cg(void) {
 
     /*  Reserve a few registers for use by the code-generator.      */
     /*  This is not optimal but simple.                             */
-    sp = R_G0;
-    t1 = R_G0 + 1;
-    t2 = R_G0 + 2;
-    f1 = R_F0;
-    f2 = R_F0 + 1;
-    regsa[t1] = regsa[t2] = 1;
-    regsa[f1] = regsa[f2] = 1;
-    regsa[sp] = 1;
+    /*
+    sp = FIRST_GPR;
+    t1 = FIRST_GPR + 1;
+    t2 = FIRST_GPR + 2;
+    f1 = FIRST_FPR;
+    f2 = FIRST_FPR + 1;
+     */
+    regsa[t1] = regsa[t2] = 1; // mark as reserved
+    regsa[f1] = regsa[f2] = 1; // mark as reserved
+    regsa[sp] = 1; // mark as reserved
     regscratch[t1] = regscratch[t2] = 0;
     regscratch[f1] = regscratch[f2] = 0;
     regscratch[sp] = 0;
 
-    for (i = R_G0; i <= R_GF - VOL_GPRS; i++)
+//    for (i = FIRST_GPR; i <= LAST_GPR - VOL_GPRS; i++)
+    for (i = R_G0; i <= R_GF ; i++)
         regscratch[i] = 1;
-    for (i = R_F0; i <= R_FF - VOL_FPRS; i++)
+//    for (i = FIRST_FPR; i <= LAST_FPR - VOL_FPRS; i++)
+    for (i = R_F0; i <= R_FF; i++)
         regscratch[i] = 1;
+    //  for(i=FIRST_CCR;i<=LAST_CCR-VOL_CCRS;i++)
+    //    regscratch[i]=1;
 
     target_macros = marray;
 
@@ -763,11 +780,12 @@ int freturn(struct Typ *t)
 /*  has to simulate a pseudo register if necessary.                 */
 {
     if (ISFLOAT(t->flags))
-        return R_F0 + 2;
+        return f2 + 1;//FIRST_FPR + 2;
+        //return FIRST_FPR + 2;
     if (ISSTRUCT(t->flags) || ISUNION(t->flags))
         return 0;
     if (zmleq(szof(t), l2zm(4L)))
-        return R_G0 + 3;
+        return t2 + 1; //FIRST_GPR + 3;
     else
         return 0;
 }
@@ -809,10 +827,17 @@ int regok(int r, int t, int mode)
     if (r == 0)
         return 0;
     t &= NQ;
+    /*
+    if(t==0&&r>=FIRST_CCR&&r<=LAST_CCR)
+        return 1;
+    */
+    //if (ISFLOAT(t) && r >= FIRST_FPR && r <= LAST_FPR)
     if (ISFLOAT(t) && r >= R_F0 && r <= R_FF)
         return 1;
+    //if (t == POINTER && r >= FIRST_GPR && r <= LAST_GPR)
     if (t == POINTER && r >= R_G0 && r <= R_GF)
         return 1;
+    //if (t >= CHAR && t <= LONG && r >= FIRST_GPR && r <= LAST_GPR)
     if (t >= CHAR && t <= LONG && r >= R_G0 && r <= R_GF)
         return 1;
     return 0;
@@ -1443,8 +1468,9 @@ void gen_code(FILE *f, struct IC *p, struct Var *v, zmax offset)
 int shortcut(int code, int typ) {
     return 0;
 }
-
 int reg_parm(struct reg_handle *m, struct Typ *t, int vararg, struct Typ *d) {
+    return 0; // FIXME- JL - enable??
+
     int f;
     f = t->flags & NQ;
     if (f <= LONG || f == POINTER) {
@@ -1452,12 +1478,14 @@ int reg_parm(struct reg_handle *m, struct Typ *t, int vararg, struct Typ *d) {
             return 0;
         else
             return R_G0 + 3 + m->gregs++;
+           // return FIRST_GPR + 3 + m->gregs++;
     }
     if (ISFLOAT(f)) {
         if (m->fregs >= FPR_ARGS)
             return 0;
         else
             return R_F0 + 2 + m->fregs++;
+            //return FIRST_FPR + 2 + m->fregs++;
     }
     return 0;
 }

@@ -9,6 +9,8 @@ NLDFLAGS = $(LDFLAGS)
 TARGET=g
 
 all: bin/vc bin/vprof bin/vbcc$(TARGET) #bin/vcpp
+	echo copying
+	cp bin/* $(VBCC)/bin/
 
 vbccs: bin/vbccs$(TARGET)
 

@@ -23,12 +23,24 @@
 
 #include "dt.h"
 
+/* internally used by the backend */
+/*
+#define FIRST_GPR 1
+#define LAST_GPR (FIRST_GPR+NUM_GPRS-1)
+#define FIRST_FPR (LAST_GPR+1)
+#define LAST_FPR (FIRST_FPR+NUM_FPRS-1)
+ */
+//#define FIRST_CCR (LAST_FPR+1)
+//#define LAST_CCR (FIRST_CCR+NUM_CCRS-1)
 
 /*  This struct can be used to implement machine-specific           */
 /*  addressing-modes.                                               */
 /*  Currently possible are (const,gpr) and (gpr,gpr)                */
 struct AddressingMode{
       int notused;
+    // NOT USED int flags;
+    // int base;
+    //long offset;
 };
 
 enum {
@@ -38,8 +50,9 @@ enum {
 };
 
 /*  The number of registers of the target machine.                  */
-#define MAXR (R_FF-1)
-//NUM_GPRS+NUM_FPRS//+NUM_CCRS
+//#define MAXR NUM_GPRS+NUM_FPRS//+NUM_CCRS
+//#define MAXR NUM_GPRS+NUM_FPRS//+NUM_CCRS
+#define MAXR R_FF
 
 /*  Number of commandline-options the code-generator accepts.       */
 #define MAXGF 1
