@@ -1,4 +1,4 @@
-
+VBCC=/home/john/work/vbcc/dist
 # used to create vbcc, vc and ucpp
 CC = gcc -std=c9x -g -DHAVE_AOS4 #-fsanitize=address #-DHAVE_ECPP -DHAVE_MISRA 
 LDFLAGS = -lm
@@ -11,6 +11,9 @@ TARGET=g
 all: bin/vc bin/vprof bin/vbcc$(TARGET) #bin/vcpp
 	echo copying
 	cp bin/* $(VBCC)/bin/
+
+clean:
+	echo no clean
 
 vbccs: bin/vbccs$(TARGET)
 

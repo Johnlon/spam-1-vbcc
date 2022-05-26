@@ -5,6 +5,17 @@ void pop() {
 
 }
 */
+extern int externalFn(); 
+extern int externalFn2(); 
+
+int static1=1;
+int static2=2;
+
+int sub(int e) {
+  int o = externalFn(); // will cause gen_var_header
+  o = externalFn2(); // will cause gen_var_header
+  return e;
+}
 
 int main() {
     long myLong=0xbeaf;
@@ -15,8 +26,10 @@ int main() {
     }
     else 
     {
-        myLong=0xbb * yourLong;
+        myLong=0xbb + yourLong;
     }
+
+    int o = sub(123);
     return 99;
 
   //  return myInt;

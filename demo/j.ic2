@@ -1,17 +1,37 @@
-function main
-	allocreg gpr5
-	allocreg gpr4
-	move long #L48815->gpr4(myLong) size=4
-	move long #L65278->gpr5(yourLong) size=4
-	compare long gpr4(myLong),gpr5(yourLong)
-	bne L4
-L3
-	move long #L170->gpr4(myLong) size=4
-	bra L5
-L4
+function sub
+	allocreg gpr12
+	move int M0+-8(FP)(e)->gpr12 size=4
+	allocreg gpr11
+	call function M0+_externalFn(externalFn) size=0 => externalFn
 	allocreg gpr3
-	mul long gpr5(yourLong),#L187->gpr4(myLong)
+	get-return int ->gpr11(o)
 	freereg gpr3
-L5
-	set-return int #I99
+	call function M0+_externalFn2(externalFn2) size=0 => externalFn2
+	allocreg gpr3
+	get-return int ->gpr11(o)
+	freereg gpr3
+	set-return int gpr12(e)
 L1
+function main
+	allocreg gpr13
+	allocreg gpr12
+	allocreg gpr11
+	move long #L48815->gpr11(myLong) size=4
+	move long #L65278->gpr12(yourLong) size=4
+	compare long gpr11(myLong),gpr12(yourLong)
+	bne L6
+L5
+	move long #L170->gpr11(myLong) size=4
+	bra L7
+L6
+	allocreg gpr2
+	add long gpr12(yourLong),#L187->gpr11(myLong)
+	freereg gpr2
+L7
+	push int #I123 size=4
+	call function M0+_sub(sub) size=4 => sub
+	allocreg gpr3
+	get-return int ->gpr13(o)
+	freereg gpr3
+	set-return int #I99
+L3

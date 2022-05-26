@@ -1,15 +1,31 @@
+function sub
+	call function M0+_externalFn(externalFn) size=0 =>(unknown)
+	allocreg gpr3
+	get-return int ->M0+0(FP)(o)
+	freereg gpr3
+	call function M0+_externalFn2(externalFn2) size=0 =>(unknown)
+	allocreg gpr3
+	get-return int ->M0+0(FP)(o)
+	freereg gpr3
+	set-return int M0+-8(FP)(e)
+L1
 function main
 	move long #L48815->M0+0(FP)(myLong) size=4
 	move long #L65278->M0+4(FP)(yourLong) size=4
 	compare long M0+0(FP)(myLong),M0+4(FP)(yourLong)
-	bne L4
-L3
-	move long #L170->M0+0(FP)(myLong) size=4
-	bra L5
-L4
-	allocreg gpr3
-	mul long M0+4(FP)(yourLong),#L187->M0+0(FP)(myLong)
-	freereg gpr3
+	bne L6
 L5
+	move long #L170->M0+0(FP)(myLong) size=4
+	bra L7
+L6
+	allocreg gpr2
+	add long M0+4(FP)(yourLong),#L187->M0+0(FP)(myLong)
+	freereg gpr2
+L7
+	push int #I123 size=4
+	call function M0+_sub(sub) size=4 =>(unknown)
+	allocreg gpr3
+	get-return int ->M0+8(FP)(o)
+	freereg gpr3
 	set-return int #I99
-L1
+L3

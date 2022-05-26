@@ -30,7 +30,9 @@
     - number of caller-save-registers
  */
 
-#include "supp.h"
+//#include "supp.h"
+#include "../../supp.h"
+//#include "machine.h"
 
 #define BASETYPE(x) ((x & NQ))
 
@@ -40,13 +42,6 @@
 int isRegP(struct obj *x) {
     return ((x->flags & (REG | DREFOBJ)) == REG);
 }
-
-int getReg(struct obj *o) {
-    if (isRegP(o))
-        return o->reg;
-    return 0;
-}
-
 // is a KONST but not DEREFOBJ
 #define isconst(x) ((p->x.flags & (KONST | DREFOBJ)) == KONST)
 // is a KONST pointer
@@ -59,8 +54,15 @@ int getReg(struct obj *o) {
 // is a VAR and REG
 #define isvarreg(x) ((p->x.flags & (VAR | REG)) == (VAR|REG))
 
+int getReg(struct obj *o) {
+    if (isRegP(o))
+        return o->reg;
+    return 0;
+}
+
 void dumpIC(FILE *f, struct IC *p);
 
+void dumpObj(FILE *f, struct obj *o, int otyp);
 static long real_offset(struct obj *o);
 
 void emitvalJL(FILE *f, union atyps *p, int t, int byteToEmit);
@@ -219,6 +221,22 @@ static long notpopped, dontpop, stackoffset, maxpushed;
 #endif
 
 static long localsize, rsavesize, argsize;
+
+struct gc_state {
+    FILE *f;
+
+    int reg_busy[MAXR + 1];    /* Track used registers */
+
+    int op_save;        /* Saved register to restore before op end */
+    long val_rv;        /* Return Value immediate (must be small enough) */
+    int reg_rv;        /* Return Value register, 0=none */
+    int reg_lw;        /* Register written in the last emitted op code */
+
+    int s_argsize;
+    int s_localsize;
+    int s_savesize;
+};
+
 
 static void emit_obj(FILE *f, struct obj *p, int t);
 
@@ -459,6 +477,10 @@ static struct IC *preload(FILE *, struct IC *);
 static void function_top(FILE *, struct Var *, long);
 
 static void function_bottom(FILE *f, struct Var *, long);
+
+void gc_getreturn(FILE *f, struct IC *p);
+
+void gc_call(FILE *f, struct IC *p);
 
 static int q1reg, q2reg, zreg;
 
@@ -701,6 +723,16 @@ int init_cg(void) {
         regtype[i] = &ldbl;
     }
 
+    regnames[SP] = mymalloc(10);
+    sprintf(regnames[SP], "sp");
+    regsize[SP] = l2zm(4L);
+    regtype[SP] = &ltyp;
+
+    regnames[FP] = mymalloc(10);
+    sprintf(regnames[FP], "fp");
+    regsize[FP] = l2zm(4L);
+    regtype[FP] = &ltyp;
+
     /*  Use multiple ccs.   */
     multiple_ccs = 0;
 
@@ -731,17 +763,16 @@ int init_cg(void) {
 
     /*  Reserve a few registers for use by the code-generator.      */
     /*  This is not optimal but simple.                             */
-    sp = R_G0;
-    t1 = R_G0 + 1;
-    t2 = R_G0 + 2;
+    t1 = R_G0;
+    t2 = R_G0 + 1;
     f1 = R_F0;
     f2 = R_F0 + 1;
     regsa[t1] = regsa[t2] = 1;
     regsa[f1] = regsa[f2] = 1;
-    regsa[sp] = 1;
+    regsa[SP] = 1;
     regscratch[t1] = regscratch[t2] = 0;
     regscratch[f1] = regscratch[f2] = 0;
-    regscratch[sp] = 0;
+    regscratch[SP] = 0;
 
     for (i = R_G0; i <= R_GF - VOL_GPRS; i++)
         regscratch[i] = 1;
@@ -877,6 +908,9 @@ void gen_var_head(FILE *f, struct Var *v)
 /*  definition, i.e. the label and information for      */
 /*  linkage etc.                                        */
 {
+
+    emit(f, "\n;JL gen_var_head\n");
+
     int constflag;
     char *sec;
     if (v->clist) constflag = is_const(v->vtyp);
@@ -1037,7 +1071,7 @@ void gen_code(FILE *f, struct IC *p, struct Var *v, zmax offset)
 
         printf("\nDUMP...\n");
         dumpIC(stdout, p);
-        printf( "PRIC2...\n");
+        printf("PRIC2...\n");
         pric2(stdout, p);
         printf("-----\n");
 
@@ -1192,45 +1226,12 @@ void gen_code(FILE *f, struct IC *p, struct Var *v, zmax offset)
             continue;
         }
         if (c == GETRETURN) {
-            emit(f, "; GETRETURN\n");
+            gc_getreturn(f, p);
 
-            if (p->q1.reg) {
-                zreg = p->q1.reg;
-                save_result(f, p);
-            } else
-                p->z.flags = 0;
             continue;
         }
         if (c == CALL) {
-            emit(f, "CALL\n");
-            int reg;
-            /*FIXME*/
-#if 0
-            if(stack_valid&&(p->q1.flags&(VAR|DREFOBJ))==VAR&&p->q1.v->fi&&(p->q1.v->fi->flags&ALL_STACK)){
-                if(framesize+zum2ul(p->q1.v->fi->stack1)>stack)
-                    stack=framesize+zum2ul(p->q1.v->fi->stack1);
-            }else
-                stack_valid=0;
-#endif
-            if ((p->q1.flags & (VAR | DREFOBJ)) == VAR && p->q1.v->fi && p->q1.v->fi->inline_asm) {
-                emit_inline_asm(f, p->q1.v->fi->inline_asm);
-            } else {
-                emit(f, "\tcall\t");
-                emit_obj(f, &p->q1, t);
-                emit(f, "\n");
-            }
-            /*FIXME*/
-#if FIXED_SP
-            pushed -= zm2l(p->q2.val.vmax);
-#endif
-            if ((p->q1.flags & (VAR | DREFOBJ)) == VAR && p->q1.v->fi && (p->q1.v->fi->flags & ALL_REGS)) {
-                bvunite(regs_modified, p->q1.v->fi->regs_modified, RSIZE);
-            } else {
-                int i;
-                for (i = 1; i <= MAXR; i++) {
-                    if (regscratch[i]) BSET(regs_modified, i);
-                }
-            }
+            gc_call(f, p);
             continue;
         }
         if (c == ASSIGN || c == PUSH) {
@@ -1299,11 +1300,24 @@ void gen_code(FILE *f, struct IC *p, struct Var *v, zmax offset)
             int q2Reg = getReg(&(p->q2));
 
             // const usually in q2, one source is always non-const
-            fprintf(stderr, "OBJ DUMP: "); pric2(stderr, p);
+            fprintf(stderr, "OBJ DUMP: ");
+            pric2(stderr, p);
 
-            if(p->q1.flags){ fprintf(stderr , " @@q1 ");probj(stderr,&p->q1,0); fprintf(stderr,"\n");}
-            if(p->q2.flags){ fprintf(stderr, " @@q2 ");probj(stderr,&p->q2,0); fprintf(stderr,"\n");}
-            if(p->z.flags){ fprintf(stderr, " @@z ");probj(stderr,&p->z,0); fprintf(stderr,"\n");}
+            if (p->q1.flags) {
+                fprintf(stderr, " @@q1 ");
+                probj(stderr, &p->q1, 0);
+                fprintf(stderr, "\n");
+            }
+            if (p->q2.flags) {
+                fprintf(stderr, " @@q2 ");
+                probj(stderr, &p->q2, 0);
+                fprintf(stderr, "\n");
+            }
+            if (p->z.flags) {
+                fprintf(stderr, " @@z ");
+                probj(stderr, &p->z, 0);
+                fprintf(stderr, "\n");
+            }
 
             if (isreg(z)) fprintf(stderr, "z  ISREG (%s)\n", regnames[p->z.reg]);
             if (isreg(q1)) fprintf(stderr, "q1 ISREG (%s)\n", regnames[p->q1.reg]);
@@ -1327,8 +1341,8 @@ void gen_code(FILE *f, struct IC *p, struct Var *v, zmax offset)
             int branchType = findBranch(f, p);
             emit(f, "\t; BRANCH-TYPE-WILL-BE %s\n", ename[branchType]);
 
-            char* q1Regname = regnames[p->q1.reg];
-            char* q2Regname = regnames[p->q2.reg];
+            char *q1Regname = regnames[p->q1.reg];
+            char *q2Regname = regnames[p->q2.reg];
 
             if (branchType == BEQ || branchType == BNE || branchType == BLT || branchType == BGT) {
                 emit(f, "\tREGA=[:%s+3]\n", q1Regname);
@@ -1407,13 +1421,13 @@ void gen_code(FILE *f, struct IC *p, struct Var *v, zmax offset)
         }
 
         if ((c >= OR && c <= AND) || (c >= LSHIFT && c <= MOD)) {
-            emit(f, "OR AND SHIFT MOD \n");
+            emit(f, "; OR AND SHIFT MOD \n");
             if (!THREE_ADDR)
                 load_reg(f, zreg, &p->q1, t);
             if (c >= OR && c <= AND)
-                emit(f, "\t%s.%s\t%s,", logicals[c - OR], dt(t), regnames[zreg]);
+                emit(f, "\t; ORIG %s.%s\t%s,", logicals[c - OR], dt(t), regnames[zreg]);
             else
-                emit(f, "\t%s.%s\t%s,", arithmetics[c - LSHIFT], dt(t), regnames[zreg]);
+                emit(f, "\t; ORIG %s.%s\t%s,", arithmetics[c - LSHIFT], dt(t), regnames[zreg]);
             if (THREE_ADDR) {
                 emit_obj(f, &p->q1, t);
                 emit(f, ",");
@@ -1438,6 +1452,62 @@ void gen_code(FILE *f, struct IC *p, struct Var *v, zmax offset)
         v->fi->stack1 = stack;
     }
     emit(f, "# stacksize=%lu%s\n", zum2ul(stack), stack_valid ? "" : "+??");
+}
+
+void gc_call(FILE *f, struct IC *p) {
+    int t = p->typf;
+
+    emit(f, "; CALL\n");
+
+    int reg;
+    if ((p->q1.flags & (VAR | DREFOBJ)) == VAR && p->q1.v->fi && p->q1.v->fi->inline_asm) {
+        emit_inline_asm(f, p->q1.v->fi->inline_asm);
+    } else {
+        emit(f, "\tcall\t");
+        emit_obj(f, &p->q1, t);
+        emit(f, "\n");
+    }
+    pushed -= zm2l(p->q2.val.vmax);
+
+    if ((p->q1.flags & (VAR | DREFOBJ)) == VAR && p->q1.v->fi && (p->q1.v->fi->flags & ALL_REGS)) {
+        bvunite(regs_modified, p->q1.v->fi->regs_modified, RSIZE);
+    } else {
+        int i;
+        for (i = 1; i <= MAXR; i++) {
+            if (regscratch[i]) BSET(regs_modified, i);
+        }
+    }
+}
+
+/*
+    Get the return value of the last function call. ->z.
+    If the return value is in a register, its number will be q1.reg.
+    Otherwise q1.reg will be 0.
+    GETRETURN immediately follows a CALL IC (except possible FREEREGs).
+  */
+void gc_getreturn(FILE *f, struct IC *p) {
+    emit(f, "; GETRETURN\n");
+
+    if (p->q1.reg) {
+        /* Is the target a register ? */
+        if (isRegP(&p->z)) {
+            int targ = p->z.reg;
+            int src = p->q1.reg;
+            //save_result(f, p);
+
+            emit(f, "\tREGA = [:%s]\n", regnames[src]);
+            emit(f, "\t[:%s] = REGA\n", regnames[targ]);
+        } else {
+            fprintf(stderr, "z is not a register\n");
+            dumpObj(f, &p->z, ztyp(p));
+            ierror(0);
+        }
+    } else {
+      //  p->z.flags = 0;
+        fprintf(stderr, "not q1.reg is 0\n");
+        dumpObj(f, &p->q1, q1typ(p));
+        ierror(0);
+    }
 }
 
 int shortcut(int code, int typ) {
@@ -1466,6 +1536,9 @@ int handle_pragma(const char *s) {
 }
 
 void cleanup_cg(FILE *f) {
+    // write all the registers at the bottom of the asm
+    for (int i = 0; i <= MAXR; i++)
+        emit(f, "\t%-6s:\tBYTES [0,0,0,0]\n", regnames[i]);
 }
 
 void cleanup_db(FILE *f) {
