@@ -62,7 +62,8 @@ int getReg(struct obj *o) {
 
 void dumpIC(FILE *f, struct IC *p);
 
-void dumpObj(FILE *f, struct obj *o, int otyp);
+void dumpObj(FILE *f, char* label, struct obj *o, int otyp);
+
 static long real_offset(struct obj *o);
 
 void emitvalJL(FILE *f, union atyps *p, int t, int byteToEmit);
@@ -154,9 +155,9 @@ char *g_attr_name[] = {"__interrupt", 0};
 
 #define LOAD_STORE 0
 #define THREE_ADDR 1
-#define VOL_GPRS   (NUM_GPRS/2)
-#define VOL_FPRS   (NUM_FPRS/2)
-#define VOL_CCRS   (NUM_CCRS/2)
+//#define VOL_GPRS   (NUM_GPRS/2)
+//#define VOL_FPRS   (NUM_FPRS/2)
+//#define VOL_CCRS   (NUM_CCRS/2)
 #define IMM_IND    (0)
 #define GPR_IND    (0)
 #define GPR_ARGS   (0)
@@ -178,9 +179,8 @@ static char *marray[] = {"__section(x)=__vattr(\"section(\"#x\")\")",
                          0};
 
 /* special registers */
-static int sp;         /*  Stackpointer                        */
-static int t1, t2;//, t3; /*  temporary gprs */
-static int f1, f2;//, f3; /*  temporary fprs */
+static int t0, t1, t2;//, t3; /*  temporary gprs */
+static int f0, f1, f2;//, f3; /*  temporary fprs */
 
 #define dt(t) (((t)&UNSIGNED) ? udt[(t)&NQ] : sdt[(t)&NQ])
 static char *sdt[MAX_TYPE + 1] = {"??", "c", "s", "i", "l", "ll", "f", "d", "ld", "v", "p"};
@@ -326,9 +326,9 @@ static void load_address(FILE *f, int r, struct obj *o, int type)
     if (o->v->storage_class == AUTO || o->v->storage_class == REGISTER) {
         long off = real_offset(o);
         if (THREE_ADDR) {
-            emit(f, "\tadd.%s\t%s,%s,%ld\n", dt(POINTER), regnames[r], regnames[sp], off);
+            emit(f, "\tadd.%s\t%s,%s,%ld\n", dt(POINTER), regnames[r], regnames[SP], off);
         } else {
-            emit(f, "\tmov.%s\t%s,%s\n", dt(POINTER), regnames[r], regnames[sp]);
+            emit(f, "\tmov.%s\t%s,%s\n", dt(POINTER), regnames[r], regnames[SP]);
             if (off)
                 emit(f, "\tadd.%s\t%s,%ld\n", dt(POINTER), regnames[r], off);
         }
@@ -602,7 +602,7 @@ static void emit_objJL(FILE *f, struct obj *p, int t, int offset) {
     } else if (p->flags & VAR) {
         if (p->v->storage_class == AUTO || p->v->storage_class == REGISTER) {
             emit(f, "NOT IMPL VAR AUTO\n");
-            emit(f, "%ld(%s)", real_offset(p), regnames[sp]);
+            emit(f, "%ld(%s)", real_offset(p), regnames[SP]);
         } else {
             emit(f, "NOT IMPL VAR\n");
             if (!zmeqto(l2zm(0L), p->val.vmax)) {
@@ -640,7 +640,7 @@ static void emit_obj(FILE *f, struct obj *p, int t) {
         emit(f, "%s", regnames[p->reg]);
     } else if (p->flags & VAR) {
         if (p->v->storage_class == AUTO || p->v->storage_class == REGISTER)
-            emit(f, "%ld(%s)", real_offset(p), regnames[sp]);
+            emit(f, "%ld(%s)", real_offset(p), regnames[SP]);
         else {
             if (!zmeqto(l2zm(0L), p->val.vmax)) {
                 emitval(f, &p->val, LONG);
@@ -710,6 +710,20 @@ int init_cg(void) {
     }
 
     regnames[0] = "noreg"; // when a register isn't in effect then the reg id is 0 and so it's convenient that there is a distinctive name at that ordinal
+    /*
+    for (i = R_GTMP0; i <= R_GTMP2; i++) {
+        regnames[i] = mymalloc(10);
+        sprintf(regnames[i], "gtmp%d", i - R_GTMP0);
+        regsize[i] = l2zm(4L);
+        regtype[i] = &ltyp;
+    }
+    for (i = R_FTMP0; i <= R_FTMP2; i++) {
+        regnames[i] = mymalloc(10);
+        sprintf(regnames[i], "ftmp%d", i - R_FTMP0);
+        regsize[i] = l2zm(4L);
+        regtype[i] = &ltyp;
+    }
+     */
     for (i = R_G0; i <= R_GF; i++) {
         regnames[i] = mymalloc(10);
         sprintf(regnames[i], "gpr%d", i - R_G0);
@@ -763,20 +777,31 @@ int init_cg(void) {
 
     /*  Reserve a few registers for use by the code-generator.      */
     /*  This is not optimal but simple.                             */
-    t1 = R_G0;
-    t2 = R_G0 + 1;
-    f1 = R_F0;
-    f2 = R_F0 + 1;
-    regsa[t1] = regsa[t2] = 1;
-    regsa[f1] = regsa[f2] = 1;
+    /*  Mark them as in use.                             */
+    /*
+    t0 = R_GTMP0;
+    t1 = R_GTMP1;
+    t2 = R_GTMP2;
+    f0 = R_FTMP0;
+    f1 = R_FTMP1;
+    f2 = R_FTMP2;
+    */
+    t0 = R_G0;
+    t1 = R_G1;
+    t2 = R_G2;
+    f0 = R_F0;
+    f1 = R_F1;
+    f2 = R_F2;
+    regsa[t0] = regsa[t1] = regsa[t2] = 1;
+    regsa[f0] = regsa[f1] = regsa[f2] = 1;
+    regscratch[t0] = regscratch[t1] = regscratch[t2] = 0;
+    regscratch[f0] = regscratch[f1] = regscratch[f2] = 0;
     regsa[SP] = 1;
-    regscratch[t1] = regscratch[t2] = 0;
-    regscratch[f1] = regscratch[f2] = 0;
     regscratch[SP] = 0;
 
-    for (i = R_G0; i <= R_GF - VOL_GPRS; i++)
+    for (i = R_G0; i <= R_GF/2; i++)
         regscratch[i] = 1;
-    for (i = R_F0; i <= R_FF - VOL_FPRS; i++)
+    for (i = R_F0; i <= R_FF/2; i++)
         regscratch[i] = 1;
 
     target_macros = marray;
@@ -1241,7 +1266,7 @@ void gen_code(FILE *f, struct IC *p, struct Var *v, zmax offset)
             if (c == PUSH) {
                 emit(f, "; ASSIGN/PUSH = P\n");
 #if FIXED_SP
-                emit(f, "\t; ORIGINAL mov.%s\t%ld(%s),", dt(t), pushed, regnames[sp]);
+                emit(f, "\t; ORIGINAL mov.%s\t%ld(%s),", dt(t), pushed, regnames[SP]);
                 emit_obj(f, &p->q1, t);
                 emit(f, "\n");
                 pushed += zm2l(p->q2.val.vmax);
@@ -1499,15 +1524,17 @@ void gc_getreturn(FILE *f, struct IC *p) {
             emit(f, "\t[:%s] = REGA\n", regnames[targ]);
         } else {
             fprintf(stderr, "z is not a register\n");
-            dumpObj(f, &p->z, ztyp(p));
+            dumpObj(f, "z", &p->z, ztyp(p));
             ierror(0);
         }
     } else {
-      //  p->z.flags = 0;
+        //  p->z.flags = 0;
         fprintf(stderr, "not q1.reg is 0\n");
-        dumpObj(f, &p->q1, q1typ(p));
+        dumpObj(f, "q1", &p->q1, q1typ(p));
         ierror(0);
     }
+    printf("===");
+    fflush(stdout);
 }
 
 int shortcut(int code, int typ) {
@@ -1545,50 +1572,51 @@ void cleanup_db(FILE *f) {
     if (f) section = -1;
 }
 
-void dumpObj(FILE *f, struct obj *o, int otyp) {
-    emit(f, " <");
+void dumpObj(FILE *f, char * label, struct obj *o, int otyp) {
+    printf("DUMP %s <", label);
 
     if (o->flags == (KONST | DREFOBJ)) {  // const pointer
-        emit(f, " K|D:");
-        emitval(f, &o->val, otyp);
+        printf(" K|D:");
+        emitval(stdout, &o->val, otyp);
     }
     if (o->flags == KONST) {  // const val
-        emit(f, " K:");
-        emitval(f, &o->val, otyp);
+        printf(" K:");
+        emitval(stdout, &o->val, otyp);
     }
     if (o->flags & REG) {
-        emit(f, " ISREG:%s", regnames[o->reg]);
+        printf(" ISREG:%s", regnames[o->reg]);
     }
     if (o->flags & DREFOBJ) {
-        emit(f, " DREFOBJ");
+        printf(" DREFOBJ");
     }
     if (o->flags & VARADR) {
-        emit(f, " VARADR");
+        printf(" VARADR");
     }
     if (o->flags & VAR) {
-        emit(f, " VAR");
+        printf(" VAR");
         if (o->v->storage_class == AUTO) {
-            emit(f, " AUTO");
-            emit(f, ":%ld(%s)", real_offset(o), regnames[sp]);
+            printf(" AUTO");
+            printf(":%ld(%s)", real_offset(o), regnames[SP]);
         } else if (o->v->storage_class == REGISTER) {
-            emit(f, " REGISTER");
-            emit(f, ":%ld(%s)", real_offset(o), regnames[sp]);
+            printf(" REGISTER");
+            printf(":%ld(%s)", real_offset(o), regnames[SP]);
         } else {
             // add sign
             if (!zmeqto(l2zm(0L), o->val.vmax)) {
-                emitval(f, &o->val, LONG);
-                emit(f, "+");
+                emitval(stdout, &o->val, LONG);
+                printf("+");
             }
             if (o->v->storage_class == STATIC) {
-                emit(f, " STATIC:%s%ld", labprefix, zm2l(o->v->offset));
+                printf(" STATIC:%s%ld", labprefix, zm2l(o->v->offset));
             } else if (o->v->storage_class == EXTERN) {
-                emit(f, " EXTERN:%s%ld", labprefix, zm2l(o->v->offset));
+                printf(" EXTERN:%s%ld", labprefix, zm2l(o->v->offset));
             } else {
-                emit(f, " NONSTATC:%s%s", idprefix, o->v->identifier);
+                printf(" NONSTATC:%s%s", idprefix, o->v->identifier);
             }
         }
     }
-    emit(f, ">");
+    printf(" >");
+    fflush(stdout);
 }
 
 void dumpIC(FILE *f, struct IC *p) {
@@ -1596,14 +1624,14 @@ void dumpIC(FILE *f, struct IC *p) {
     emit(f, "\n");
 
     emit(f, "\tDUMP z=");
-    dumpObj(f, &p->z, ztyp(p));
+    dumpObj(f, "z", &p->z, ztyp(p));
     emit(f, "\n");
 
     emit(f, "\tDUMP q1=");
-    dumpObj(f, &p->q1, q1typ(p));
+    dumpObj(f, "q1", &p->q1, q1typ(p));
     emit(f, "\n");
 
     emit(f, "\tDUMP q2=");
-    dumpObj(f, &p->q2, q2typ(p));
+    dumpObj(f, "q2", &p->q2, q2typ(p));
     emit(f, "\n");
 }

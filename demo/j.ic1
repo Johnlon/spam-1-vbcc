@@ -18,9 +18,9 @@ L5
 	move long #L170->M0+0(FP)(myLong) size=4
 	bra L7
 L6
-	allocreg gpr2
+	allocreg gpr3
 	add long M0+4(FP)(yourLong),#L187->M0+0(FP)(myLong)
-	freereg gpr2
+	freereg gpr3
 L7
 	push int #I123 size=4
 	call function M0+_sub(sub) size=4 =>(unknown)

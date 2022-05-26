@@ -1833,6 +1833,7 @@ static int pp_line;
 void do_error(int errn,va_list vl)
     /*  Behandelt Ausgaben wie Fehler und Meldungen */
 {
+    fprintf(stderr,"\n");
     int type,have_stack=0;
     int treat_warning_as_error=0;
     char *errstr="",*txt=filename;
@@ -1854,8 +1855,6 @@ void do_error(int errn,va_list vl)
     }else if(type&(INFUNC|INIC)){
         if((type&INIC)&&err_ic&&err_ic->line){
             fprintf(stderr,"%s %d in line %d of \"%s\": ",errstr,errn,err_ic->line,err_ic->file);
-
-
         }else{
             fprintf(stderr,"%s %d in function \"%s\": ",errstr,errn,cur_func);
         }

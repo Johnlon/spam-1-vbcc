@@ -3,18 +3,18 @@
 _sub:
 
 ; ------ allocreg
-; ALLOCREG - gpr12
+; ALLOCREG - gpr6
 
 ; ------ move
 ; ASSIGN/PUSH
-; ASSIGN i gpr12
-	[:gpr12+0] = #00	
-	[:gpr12+1] = #00	
-	[:gpr12+2] = #00	
-	[:gpr12+3] = #00	
+; ASSIGN i gpr6
+	[:gpr6+0] = #00	
+	[:gpr6+1] = #00	
+	[:gpr6+2] = #00	
+	[:gpr6+3] = #00	
 
 ; ------ allocreg
-; ALLOCREG - gpr11
+; ALLOCREG - gpr5
 
 ; ------ call
 ; CALL
@@ -26,7 +26,7 @@ _sub:
 ; ------ get-return
 ; GETRETURN
 	REGA = [:gpr3]
-	[:gpr11] = REGA
+	[:gpr5] = REGA
 
 ; ------ freereg
 ; FREEREG - gpr3
@@ -41,7 +41,7 @@ _sub:
 ; ------ get-return
 ; GETRETURN
 	REGA = [:gpr3]
-	[:gpr11] = REGA
+	[:gpr5] = REGA
 
 ; ------ freereg
 ; FREEREG - gpr3
@@ -60,42 +60,42 @@ l1:
 _main:
 
 ; ------ allocreg
-; ALLOCREG - gpr13
+; ALLOCREG - gpr7
 
 ; ------ allocreg
-; ALLOCREG - gpr12
+; ALLOCREG - gpr6
 
 ; ------ allocreg
-; ALLOCREG - gpr11
+; ALLOCREG - gpr5
 
 ; ------ move
 ; ASSIGN/PUSH
-; ASSIGN l gpr11
-	[:gpr11+0] = #af	
-	[:gpr11+1] = #be	
-	[:gpr11+2] = #00	
-	[:gpr11+3] = #00	
+; ASSIGN l gpr5
+	[:gpr5+0] = #af	
+	[:gpr5+1] = #be	
+	[:gpr5+2] = #00	
+	[:gpr5+3] = #00	
 
 ; ------ move
 ; ASSIGN/PUSH
-; ASSIGN l gpr12
-	[:gpr12+0] = #fe	
-	[:gpr12+1] = #fe	
-	[:gpr12+2] = #00	
-	[:gpr12+3] = #00	
+; ASSIGN l gpr6
+	[:gpr6+0] = #fe	
+	[:gpr6+1] = #fe	
+	[:gpr6+2] = #00	
+	[:gpr6+3] = #00	
 
 ; ------ compare
 ; COMPARE START ======================================================
-	; ORIGINAL ASM: 		cmp.l	gpr11,gpr12
+	; ORIGINAL ASM: 		cmp.l	gpr5,gpr6
 	; BRANCH-TYPE-WILL-BE bne
-	REGA=[:gpr11+3]
-	NOOP = REGA A_MINUS_B_SIGNEDMAG [:gpr12+3] _S
-	REGA=[:gpr11+2]
-	NOOP = REGA A_MINUS_B           [:gpr12+2] _EQ_S
-	REGA=[:gpr11+1]
-	NOOP = REGA A_MINUS_B           [:gpr12+1] _EQ_S
-	REGA=[:gpr11+0]
-	NOOP = REGA A_MINUS_B           [:gpr12+0] _EQ_S
+	REGA=[:gpr5+3]
+	NOOP = REGA A_MINUS_B_SIGNEDMAG [:gpr6+3] _S
+	REGA=[:gpr5+2]
+	NOOP = REGA A_MINUS_B           [:gpr6+2] _EQ_S
+	REGA=[:gpr5+1]
+	NOOP = REGA A_MINUS_B           [:gpr6+1] _EQ_S
+	REGA=[:gpr5+0]
+	NOOP = REGA A_MINUS_B           [:gpr6+0] _EQ_S
 	; aggregate flags into register
 	REGA=0
 	REGA = REGA A_OR_B 1 _LT
@@ -114,11 +114,11 @@ l5:
 
 ; ------ move
 ; ASSIGN/PUSH
-; ASSIGN l gpr11
-	[:gpr11+0] = #aa	
-	[:gpr11+1] = #00	
-	[:gpr11+2] = #00	
-	[:gpr11+3] = #00	
+; ASSIGN l gpr5
+	[:gpr5+0] = #aa	
+	[:gpr5+1] = #00	
+	[:gpr5+2] = #00	
+	[:gpr5+3] = #00	
 
 ; ------ bra
 	PCHI = <:l7
@@ -128,14 +128,14 @@ l5:
 l6:
 
 ; ------ allocreg
-; ALLOCREG - gpr2
+; ALLOCREG - gpr3
 
 ; ------ add
 ; OR AND SHIFT MOD 
-	; ORIG add.l	gpr11,gpr12,187
+	; ORIG add.l	gpr5,gpr6,187
 
 ; ------ freereg
-; FREEREG - gpr2
+; FREEREG - gpr3
 
 ; ------ label
 l7:
@@ -143,7 +143,7 @@ l7:
 ; ------ push
 ; ASSIGN/PUSH
 ; ASSIGN/PUSH = P
-	; ORIGINAL mov.i	0(noreg),123
+	; ORIGINAL mov.i	0(sp),123
 
 ; ------ call
 ; CALL
@@ -155,7 +155,7 @@ l7:
 ; ------ get-return
 ; GETRETURN
 	REGA = [:gpr3]
-	[:gpr13] = REGA
+	[:gpr7] = REGA
 
 ; ------ freereg
 ; FREEREG - gpr3
@@ -190,6 +190,12 @@ _static2:
 ;JL gen_var_head
 	.globl	_externalFn2
 	noreg :	BYTES [0,0,0,0]
+	(null):	BYTES [0,0,0,0]
+	(null):	BYTES [0,0,0,0]
+	(null):	BYTES [0,0,0,0]
+	(null):	BYTES [0,0,0,0]
+	(null):	BYTES [0,0,0,0]
+	(null):	BYTES [0,0,0,0]
 	gpr0  :	BYTES [0,0,0,0]
 	gpr1  :	BYTES [0,0,0,0]
 	gpr2  :	BYTES [0,0,0,0]

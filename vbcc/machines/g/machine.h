@@ -17,8 +17,8 @@
 
 /* buil-time configurable options: */
 //#define NUM_GPRS 32
-#define NUM_GPRS 10
-#define NUM_FPRS 32
+//#define NUM_GPRS 10
+//#define NUM_FPRS 32
 //#define NUM_CCRS 8    // CONDITION CODE REGISTER?? JL
 #define FIXED_SP 1
 
@@ -34,6 +34,8 @@ struct AddressingMode{
 
 enum {
     R_NONE = 0,
+    R_GTMP0, R_GTMP1, R_GTMP2,
+    R_FTMP0, R_FTMP1, R_FTMP2,
     R_G0, R_G1, R_G2, R_G3, R_G4, R_G5, R_G6, R_G7, R_G8, R_G9, R_GA, R_GB, R_GC, R_GD, R_GE, R_GF,
     R_F0, R_F1, R_F2, R_F3, R_F4, R_F5, R_F6, R_F7, R_F8, R_F9, R_FA, R_FB, R_FC, R_FD, R_FE, R_FF,
     FP,

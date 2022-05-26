@@ -1,37 +1,37 @@
 function sub
-	allocreg gpr12
-	move int M0+-8(FP)(e)->gpr12 size=4
-	allocreg gpr11
+	allocreg gpr6
+	move int M0+-8(FP)(e)->gpr6 size=4
+	allocreg gpr5
 	call function M0+_externalFn(externalFn) size=0 => externalFn
 	allocreg gpr3
-	get-return int ->gpr11(o)
+	get-return int ->gpr5(o)
 	freereg gpr3
 	call function M0+_externalFn2(externalFn2) size=0 => externalFn2
 	allocreg gpr3
-	get-return int ->gpr11(o)
+	get-return int ->gpr5(o)
 	freereg gpr3
-	set-return int gpr12(e)
+	set-return int gpr6(e)
 L1
 function main
-	allocreg gpr13
-	allocreg gpr12
-	allocreg gpr11
-	move long #L48815->gpr11(myLong) size=4
-	move long #L65278->gpr12(yourLong) size=4
-	compare long gpr11(myLong),gpr12(yourLong)
+	allocreg gpr7
+	allocreg gpr6
+	allocreg gpr5
+	move long #L48815->gpr5(myLong) size=4
+	move long #L65278->gpr6(yourLong) size=4
+	compare long gpr5(myLong),gpr6(yourLong)
 	bne L6
 L5
-	move long #L170->gpr11(myLong) size=4
+	move long #L170->gpr5(myLong) size=4
 	bra L7
 L6
-	allocreg gpr2
-	add long gpr12(yourLong),#L187->gpr11(myLong)
-	freereg gpr2
+	allocreg gpr3
+	add long gpr6(yourLong),#L187->gpr5(myLong)
+	freereg gpr3
 L7
 	push int #I123 size=4
 	call function M0+_sub(sub) size=4 => sub
 	allocreg gpr3
-	get-return int ->gpr13(o)
+	get-return int ->gpr7(o)
 	freereg gpr3
 	set-return int #I99
 L3
