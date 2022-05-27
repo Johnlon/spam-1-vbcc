@@ -162,8 +162,6 @@ static char *marray[] = {"__section(x)=__vattr(\"section(\"#x\")\")",
                          0};
 
 /* special registers */
-static int t1, t2;//, t3; /*  temporary gprs */
-static int f1, f2;//, f3; /*  temporary fprs */
 
 #define dt(t) (((t)&UNSIGNED) ? udt[(t)&NQ] : sdt[(t)&NQ])
 static char *sdt[MAX_TYPE + 1] = {"??", "c", "s", "i", "l", "ll", "f", "d", "ld", "v", "p"};
@@ -512,25 +510,25 @@ static struct IC *preload(FILE *f, struct IC *p) {
         zreg = p->z.reg;
     } else {
         if (ISFLOAT(ztyp(p))) {
-            zreg = f1;
+            zreg = R_FTMP1;
         } else {
-            zreg = t1;
+            zreg = R_GTMP1;
         }
     }
 
     if ((p->q1.flags & (DREFOBJ | REG)) == DREFOBJ && !p->q1.am) {
         p->q1.flags &= ~DREFOBJ;
-        load_reg(f, t1, &p->q1, q1typ(p));
-        p->q1.reg = t1;
+        load_reg(f, R_GTMP1, &p->q1, q1typ(p));
+        p->q1.reg = R_GTMP1;
         p->q1.flags |= (REG | DREFOBJ);
     }
     if (p->q1.flags && LOAD_STORE && !isreg(q1)) {
         if (p->code == ASSIGN && isreg(z))
             q1reg = p->z.reg;
         else if (ISFLOAT(q1typ(p)))
-            q1reg = f1;
+            q1reg = R_FTMP1;
         else
-            q1reg = t1;
+            q1reg = R_GTMP1;
         load_reg(f, q1reg, &p->q1, q1typ(p));
         p->q1.reg = q1reg;
         p->q1.flags = REG;
@@ -538,15 +536,15 @@ static struct IC *preload(FILE *f, struct IC *p) {
 
     if ((p->q2.flags & (DREFOBJ | REG)) == DREFOBJ && !p->q2.am) {
         p->q2.flags &= ~DREFOBJ;
-        load_reg(f, t1, &p->q2, q2typ(p));
-        p->q2.reg = t1;
+        load_reg(f, R_GTMP1, &p->q2, q2typ(p));
+        p->q2.reg = R_GTMP1;
         p->q2.flags |= (REG | DREFOBJ);
     }
     if (p->q2.flags && LOAD_STORE && !isreg(q2)) {
         if (ISFLOAT(q2typ(p)))
-            q2reg = f2;
+            q2reg = R_FTMP2;
         else
-            q2reg = t2;
+            q2reg = R_GTMP2;
         load_reg(f, q2reg, &p->q2, q2typ(p));
         p->q2.reg = q2reg;
         p->q2.flags = REG;
@@ -558,8 +556,8 @@ static struct IC *preload(FILE *f, struct IC *p) {
 void save_result(FILE *f, struct IC *p) {
     if ((p->z.flags & (REG | DREFOBJ)) == DREFOBJ && !p->z.am) {
         p->z.flags &= ~DREFOBJ;
-        load_reg(f, t2, &p->z, POINTER);
-        p->z.reg = t2;
+        load_reg(f, R_GTMP2, &p->z, POINTER);
+        p->z.reg = R_GTMP2;
         p->z.flags |= (REG | DREFOBJ);
     }
     if (isreg(z)) {
@@ -760,14 +758,10 @@ int init_cg(void) {
     /*  Reserve a few registers for use by the code-generator.      */
     /*  This is not optimal but simple.                             */
     /*  Mark them as in use.                             */
-    t1 = R_GTMP1;
-    t2 = R_GTMP2;
-    f1 = R_FTMP1;
-    f2 = R_FTMP2;
-    regsa[t1] = regsa[t2] = 1;
-    regsa[f1] = regsa[f2] = 1;
-    regscratch[t1] = regscratch[t2] = 0;
-    regscratch[f1] = regscratch[f2] = 0;
+    regsa[R_GTMP1] = regsa[R_GTMP2] = 1;
+    regsa[R_FTMP1] = regsa[R_FTMP2] = 1;
+    regscratch[R_GTMP1] = regscratch[R_GTMP2] = 0;
+    regscratch[R_FTMP1] = regscratch[R_FTMP2] = 0;
     regsa[SP] = 1;
     regscratch[SP] = 0;
     regsa[FP] = 1;
