@@ -14,6 +14,7 @@
     - number of caller-save-registers
 */
 
+extern int DEBUG;
 
 /* buil-time configurable options: */
 //#define NUM_GPRS 32
@@ -34,13 +35,15 @@ struct AddressingMode{
 
 enum {
     R_NONE = 0,
-    R_GTMP0, R_GTMP1, R_GTMP2,
-    R_FTMP0, R_FTMP1, R_FTMP2,
+    R_GTMP1, R_GTMP2,
+    R_FTMP1, R_FTMP2,
     R_G0, R_G1, R_G2, R_G3, R_G4, R_G5, R_G6, R_G7, R_G8, R_G9, R_GA, R_GB, R_GC, R_GD, R_GE, R_GF,
     R_F0, R_F1, R_F2, R_F3, R_F4, R_F5, R_F6, R_F7, R_F8, R_F9, R_FA, R_FB, R_FC, R_FD, R_FE, R_FF,
     FP,
     SP
 };
+
+#define FPVLA_REG FP
 
 /*  The number of registers of the target machine.                  */
 #define MAXR SP
@@ -81,7 +84,7 @@ enum {
 #define INLINEMEMCPY 1024
 
 /*  Parameters are sometimes passed in registers without __reg.     */
-#define HAVE_REGPARMS 0
+#undef HAVE_REGPARMS
 
 /*  Parameters on the stack should be pushed in order rather than   */
 /*  in reverse order.                                               */
@@ -105,6 +108,7 @@ struct reg_handle{
 /* We have a implement our own cost-functions to adapt 
    register-allocation */
 #define HAVE_TARGET_RALLOC 1
+#undef HAVE_TARGET_RALLOC1
 #define cost_move_reg(x,y) 1
 #define cost_load_reg(x,y) 2
 #define cost_save_reg(x,y) 2
@@ -118,7 +122,7 @@ struct reg_handle{
 #define EMIT_BUF_DEPTH 1
 
 /*  We have no asm_peephole to optimize assembly-output */
-#define HAVE_TARGET_PEEPHOLE 0
+#undef HAVE_TARGET_PEEPHOLE
 
 /* we do not have a mark_eff_ics function, this is used to prevent
    optimizations on code which can already be implemented by efficient

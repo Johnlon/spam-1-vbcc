@@ -139,25 +139,8 @@ char *g_attr_name[] = {"__interrupt", 0};
 /*  Private data and functions.         */
 /****************************************/
 
-/*
-#define THREE_ADDR (g_flags[0] & USEDFLAG)
-#define LOAD_STORE (g_flags[1] & USEDFLAG)
-#define VOL_GPRS ((g_flags[2] & USEDFLAG) ? g_flags_val[2].l : NUM_GPRS / 2)
-#define VOL_FPRS ((g_flags[3] & USEDFLAG) ? g_flags_val[3].l : NUM_FPRS / 2)
-//#define VOL_CCRS   ((g_flags[4]&USEDFLAG)?g_flags_val[4].l:NUM_CCRS/2)
-//#define IMM_IND    ((g_flags[5]&USEDFLAG)?1:0)
-//#define GPR_IND    ((g_flags[6]&USEDFLAG)?2:0)
-#define GPR_ARGS ((g_flags[7] & USEDFLAG) ? g_flags_val[7].l : 0)
-#define FPR_ARGS ((g_flags[8] & USEDFLAG) ? g_flags_val[8].l : 0)
-#define USE_COMMONS (g_flags[9] & USEDFLAG)
-*/
-
-
 #define LOAD_STORE 0
 #define THREE_ADDR 1
-//#define VOL_GPRS   (NUM_GPRS/2)
-//#define VOL_FPRS   (NUM_FPRS/2)
-//#define VOL_CCRS   (NUM_CCRS/2)
 #define IMM_IND    (0)
 #define GPR_IND    (0)
 #define GPR_ARGS   (0)
@@ -179,8 +162,8 @@ static char *marray[] = {"__section(x)=__vattr(\"section(\"#x\")\")",
                          0};
 
 /* special registers */
-static int t0, t1, t2;//, t3; /*  temporary gprs */
-static int f0, f1, f2;//, f3; /*  temporary fprs */
+static int t1, t2;//, t3; /*  temporary gprs */
+static int f1, f2;//, f3; /*  temporary fprs */
 
 #define dt(t) (((t)&UNSIGNED) ? udt[(t)&NQ] : sdt[(t)&NQ])
 static char *sdt[MAX_TYPE + 1] = {"??", "c", "s", "i", "l", "ll", "f", "d", "ld", "v", "p"};
@@ -528,10 +511,11 @@ static struct IC *preload(FILE *f, struct IC *p) {
     if (isreg(z) && (THREE_ADDR || !compare_objects(&p->q2, &p->z))) {
         zreg = p->z.reg;
     } else {
-        if (ISFLOAT(ztyp(p)))
+        if (ISFLOAT(ztyp(p))) {
             zreg = f1;
-        else
+        } else {
             zreg = t1;
+        }
     }
 
     if ((p->q1.flags & (DREFOBJ | REG)) == DREFOBJ && !p->q1.am) {
@@ -710,20 +694,18 @@ int init_cg(void) {
     }
 
     regnames[0] = "noreg"; // when a register isn't in effect then the reg id is 0 and so it's convenient that there is a distinctive name at that ordinal
-    /*
-    for (i = R_GTMP0; i <= R_GTMP2; i++) {
+    for (i = R_GTMP1; i <= R_GTMP2; i++) {
         regnames[i] = mymalloc(10);
-        sprintf(regnames[i], "gtmp%d", i - R_GTMP0);
+        sprintf(regnames[i], "gtmp%d", i - R_GTMP1 +1);
         regsize[i] = l2zm(4L);
         regtype[i] = &ltyp;
     }
-    for (i = R_FTMP0; i <= R_FTMP2; i++) {
+    for (i = R_FTMP1; i <= R_FTMP2; i++) {
         regnames[i] = mymalloc(10);
-        sprintf(regnames[i], "ftmp%d", i - R_FTMP0);
+        sprintf(regnames[i], "ftmp%d", i - R_FTMP1 +1);
         regsize[i] = l2zm(4L);
-        regtype[i] = &ltyp;
+        regtype[i] = &ldbl;
     }
-     */
     for (i = R_G0; i <= R_GF; i++) {
         regnames[i] = mymalloc(10);
         sprintf(regnames[i], "gpr%d", i - R_G0);
@@ -778,26 +760,23 @@ int init_cg(void) {
     /*  Reserve a few registers for use by the code-generator.      */
     /*  This is not optimal but simple.                             */
     /*  Mark them as in use.                             */
-    /*
-    t0 = R_GTMP0;
     t1 = R_GTMP1;
     t2 = R_GTMP2;
-    f0 = R_FTMP0;
     f1 = R_FTMP1;
     f2 = R_FTMP2;
-    */
-    t0 = R_G0;
-    t1 = R_G1;
-    t2 = R_G2;
-    f0 = R_F0;
-    f1 = R_F1;
-    f2 = R_F2;
-    regsa[t0] = regsa[t1] = regsa[t2] = 1;
-    regsa[f0] = regsa[f1] = regsa[f2] = 1;
-    regscratch[t0] = regscratch[t1] = regscratch[t2] = 0;
-    regscratch[f0] = regscratch[f1] = regscratch[f2] = 0;
+    regsa[t1] = regsa[t2] = 1;
+    regsa[f1] = regsa[f2] = 1;
+    regscratch[t1] = regscratch[t2] = 0;
+    regscratch[f1] = regscratch[f2] = 0;
     regsa[SP] = 1;
     regscratch[SP] = 0;
+    regsa[FP] = 1;
+    regscratch[FP] = 0;
+
+    for (i = R_G0; i <= R_GF; i++)
+        regscratch[i] = 0;
+    for (i = R_F0; i <= R_FF; i++)
+        regscratch[i] = 0;
 
     for (i = R_G0; i <= R_GF/2; i++)
         regscratch[i] = 1;
@@ -819,11 +798,13 @@ int freturn(struct Typ *t)
 /*  has to simulate a pseudo register if necessary.                 */
 {
     if (ISFLOAT(t->flags))
-        return R_F0 + 2;
+        return R_F0;
+        //return R_F0 + 2;
     if (ISSTRUCT(t->flags) || ISUNION(t->flags))
         return 0;
     if (zmleq(szof(t), l2zm(4L)))
-        return R_G0 + 3;
+        //return R_G0 + 3;
+        return R_G0;
     else
         return 0;
 }
@@ -840,6 +821,8 @@ int reg_pair(int r, struct rpair *p)
 /* estimate the cost-saving if object o from IC p is placed in
    register r */
 int cost_savings(struct IC *p, int r, struct obj *o) {
+    return 0;
+    /*
     int c = p->code;
     if (o->flags & VKONST) {
         if (!LOAD_STORE)
@@ -854,6 +837,7 @@ int cost_savings(struct IC *p, int r, struct obj *o) {
     if (c == SETRETURN && r == p->z.reg && !(o->flags & DREFOBJ)) return 3;
     if (c == GETRETURN && r == p->q1.reg && !(o->flags & DREFOBJ)) return 3;
     return 2;
+     */
 }
 
 int regok(int r, int t, int mode)
@@ -1522,6 +1506,8 @@ void gc_getreturn(FILE *f, struct IC *p) {
 
             emit(f, "\tREGA = [:%s]\n", regnames[src]);
             emit(f, "\t[:%s] = REGA\n", regnames[targ]);
+            fprintf(stderr, "z is a register\n");
+            dumpObj(f, "z", &p->z, ztyp(p));
         } else {
             fprintf(stderr, "z is not a register\n");
             dumpObj(f, "z", &p->z, ztyp(p));
@@ -1541,6 +1527,7 @@ int shortcut(int code, int typ) {
     return 0;
 }
 
+/*
 int reg_parm(struct reg_handle *m, struct Typ *t, int vararg, struct Typ *d) {
     int f;
     f = t->flags & NQ;
@@ -1548,7 +1535,8 @@ int reg_parm(struct reg_handle *m, struct Typ *t, int vararg, struct Typ *d) {
         if (m->gregs >= GPR_ARGS)
             return 0;
         else
-            return R_G0 + 3 + m->gregs++;
+            return R_G0 + m->gregs++;
+            //return R_G0 + 3 + m->gregs++;
     }
     if (ISFLOAT(f)) {
         if (m->fregs >= FPR_ARGS)
@@ -1558,7 +1546,7 @@ int reg_parm(struct reg_handle *m, struct Typ *t, int vararg, struct Typ *d) {
     }
     return 0;
 }
-
+*/
 int handle_pragma(const char *s) {
 }
 
