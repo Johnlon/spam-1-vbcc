@@ -21,6 +21,9 @@ extern int DEBUG;
 //#define NUM_GPRS 10
 //#define NUM_FPRS 32
 //#define NUM_CCRS 8    // CONDITION CODE REGISTER?? JL
+
+// FIXED SP means (I think) SP is frozen at entry to fn and all vars are via offsets to SP
+// I thought this scheme included a FramePointer FP that was fixed at entry and not stack??
 #define FIXED_SP 1
 
 #include "dt.h"
@@ -43,7 +46,8 @@ enum {
     SP
 };
 
-#define FPVLA_REG FP
+//#define FPVLA_REG FP
+#undef FPVLA_REG
 
 /*  The number of registers of the target machine.                  */
 #define MAXR SP
@@ -85,10 +89,13 @@ enum {
 
 /*  Parameters are sometimes passed in registers without __reg.     */
 #undef HAVE_REGPARMS
+//#define HAVE_REGPARMS
+#define REGPARM_COUNT 1
 
 /*  Parameters on the stack should be pushed in order rather than   */
 /*  in reverse order.                                               */
-#define ORDERED_PUSH FIXED_SP
+//#define ORDERED_PUSH FIXED_SP
+#define ORDERED_PUSH 1
 
 /*  Structure for reg_parm().                                       */
 struct reg_handle{

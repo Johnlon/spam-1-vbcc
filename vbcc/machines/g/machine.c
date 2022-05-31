@@ -14,21 +14,9 @@
  * fire16 looks like the best structured / cleanest code but there's too much reg_pair stuff for me to rip apart so I'll persist with what I have based on "generic" and just improve it
  *
  * */
-/*  Example backend for vbcc, it models a generic 32bit RISC or CISC
-    CPU.
-
-    Configurable at build-time are:
-    - number of (32bit) general-purpose-registers
-    - number of (64bit) floating-point-registers
-    - number of (8bit) condition-code-registers
-    - mechanism for stack-arguments (moving ot fixed sp)
-
-    It allows to select as run-time-options:
-    - two- or three-address code
-    - memory operands or load-store-architecture
-    - number of register-arguments
-    - number of caller-save-registers
- */
+void push(int ignored) {
+    // JL added to make ti compile
+}
 
 //#include "supp.h"
 #include "../../supp.h"
@@ -36,12 +24,56 @@
 
 #define BASETYPE(x) ((x & NQ))
 
-//#define isRegP(x) ((x->flags & (REG | DREFOBJ)) == REG)
-#define isConst(x) ((x.flags & (KONST | DREFOBJ)) == KONST)
+/*
+#define KONST 1
+The object is a constant. Its value is in the corresponding (to typf or typf2)
+member of val.
 
-int isRegP(struct obj *x) {
+#define VAR 2
+The object is a variable. The pointer to its struct Var is in v. val.vlong vontains an offset that has to be added to it. Fur further details, see Section 16.3.3
+[Variables], page 153.
+JL: The address of the variable will be SP+-OFFSET
+
+#define DREFOBJ 32
+The content of the location in memory the object points to is used. dtyp
+contains the type of the pointer. In systems with only one pointer type, this
+will always be POINTER.
+
+#define REG 64
+The object is a register. reg contains its number.
+JL: In SPAM1 I treat this just like a static variable but I should add some H/W registers and set the pref to use them
+
+#define VARADR 128
+The address of the object is to be used. Only together with static variables (i.e.
+storage_class == STATIC or EXTERN).
+ */
+
+// 0 (no object)    - what is it then?
+// KONST            - a literal value
+// KONST|DREFOBJ    - a
+// REG
+// VAR
+// VAR|REG
+// REG|DREFOBJ
+// KONST|DREFOBJ
+// VAR|DREFOBJ
+//|REG|DREFOBJ
+//|VARADR
+
+int isReg(struct obj *x) {
     return ((x->flags & (REG | DREFOBJ)) == REG);
 }
+
+int isVar(struct obj *x) {
+    return (x->flags & (VAR | REG)) == VAR;
+}
+
+int involvesReg(struct obj *x) {
+    return (x->flags & REG) == REG;
+}
+
+//#define involvesreg(x) ((p->x.flags&(REG))==REG)
+
 // is a KONST but not DEREFOBJ
 #define isconst(x) ((p->x.flags & (KONST | DREFOBJ)) == KONST)
 // is a KONST pointer
@@ -55,14 +87,15 @@ int isRegP(struct obj *x) {
 #define isvarreg(x) ((p->x.flags & (VAR | REG)) == (VAR|REG))
 
 int getReg(struct obj *o) {
-    if (isRegP(o))
+//    if (isReg(o))
+      if (involvesReg(o))
         return o->reg;
     return 0;
 }
 
 void dumpIC(FILE *f, struct IC *p);
 
-void dumpObj(FILE *f, char* label, struct obj *o, int otyp);
+void dumpObj(FILE *f, char* label, struct obj *o, int otyp, struct IC* p);
 
 static long real_offset(struct obj *o);
 
@@ -223,22 +256,30 @@ static void emit_obj(FILE *f, struct obj *p, int t);
 
 /* calculate the actual current offset of an object relative to the
    stack-pointer; we use a layout like this:
+
+When inside the function (ie the callee) ....
+
    ------------------------------------------------
-   | arguments to this function                   |
+   | arguments to this function                   | Set by caller
    ------------------------------------------------
-   | return-address [size=4]                      |
+   | return-address [size=4]                      | Set by caller
    ------------------------------------------------
-   | caller-save registers [size=rsavesize]       |
+   | caller-save registers [size=rsavesize]       | Set by caller - nb: x86 has callee save the FP of the caller
+   ------- FP POINTS HERE -------------------------
+   | local variables [size=localsize]             | Callee moves the SP after it's local vars
+   ------- SP POINTS HERE -------------------------
+   | arguments to called functions [size=argsize] | Args to any functions called by this one
    ------------------------------------------------
-   | local variables [size=localsize]             |
-   ------------------------------------------------
-   | arguments to called functions [size=argsize] |
-   ------------------------------------------------
+
    All sizes will be aligned as necessary.
    In the case of FIXED_SP, the stack-pointer will be adjusted at
    function-entry to leave enough space for the arguments and have it
-   aligned to 16 bytes. Therefore, when calling a function, the
-   stack-pointer is always aligned to 16 bytes.
+   aligned to 16 bytes.
+
+   !! JL 16 bytes is only for x86 type stacks and even that it configurable in GCC
+   !! DOES VBCC REALY ALIGN LIKE THAT
+
+   Therefore, when calling a function, the stack-pointer is always aligned to 16 bytes.
    For a moving stack-pointer, the stack-pointer will usually point
    to the bottom of the area for local variables, but will move while
    arguments are put on the stack.
@@ -401,12 +442,13 @@ void emitvalJL(FILE *f, union atyps *p, int t, int byteToEmit)
 /* Generates code to load a memory object into register r. tmp is a
    general purpose register which may be used. tmp can be r. */
 static void load_reg(FILE *f, int r, struct obj *o, int type) {
+    emit(f, "; load_reg\n");
     type &= NU;
     if (o->flags & VARADR) {
         load_address(f, r, o, POINTER);
     } else {
         // if((o->flags&(REG|DREFOBJ))==REG&&o->reg==r)
-        if (isRegP(o) && o->reg == r) {
+        if (isReg(o) && o->reg == r) {
             // avoid copying reg to self if source is a reg and the same reg is the target
             return;
         }
@@ -424,7 +466,7 @@ static void load_reg(FILE *f, int r, struct obj *o, int type) {
             return;
         }
 
-        emit(f, "\tNOT HANDLED FOR mov.%s\t%s,", dt(type), regnames[r]);
+        emit(f, "\tTYPE NOT HANDLED FOR mov.%s\t%s,", dt(type), regnames[r]);
         emit(f, "\tmov.%s\t%s,", dt(type), regnames[r]);
         emit_obj(f, o, type);
 
@@ -472,7 +514,7 @@ static char *arithmetics[] = {"slw", "srw", "add", "sub", "mullw", "divw", "mod"
 /* compare if two objects are the same */
 static int compare_objects(struct obj *o1, struct obj *o2) {
     // if((o1->flags&(REG|DREFOBJ))==REG && ((o2->flags&(REG|DREFOBJ))==REG) && (o1->reg==o2->reg)) {
-    if (isRegP(o1) && isRegP(o2) && (o1->reg == o2->reg)) {
+    if (isReg(o1) && isReg(o2) && (o1->reg == o2->reg)) {
         return 1;
     }
 
@@ -554,16 +596,22 @@ static struct IC *preload(FILE *f, struct IC *p) {
 
 /* save the result (in zreg) into p->z */
 void save_result(FILE *f, struct IC *p) {
+    emit(f, "; save_reg\n");
     if ((p->z.flags & (REG | DREFOBJ)) == DREFOBJ && !p->z.am) {
+        emit(f, "; save_reg DREFOBJ\n");
         p->z.flags &= ~DREFOBJ;
         load_reg(f, R_GTMP2, &p->z, POINTER);
         p->z.reg = R_GTMP2;
         p->z.flags |= (REG | DREFOBJ);
     }
     if (isreg(z)) {
-        if (p->z.reg != zreg)
+        emit(f, "; save_reg ISREG\n");
+        if (p->z.reg != zreg) {
+            emit(f, "; save_reg ISREG !=\n");
             emit(f, "\tmov.%s\t%s,%s\n", dt(ztyp(p)), regnames[p->z.reg], regnames[zreg]);
+        }
     } else {
+        emit(f, "; save_reg ELSE\n");
         store_reg(f, zreg, &p->z, ztyp(p));
     }
 }
@@ -606,13 +654,6 @@ static void emit_objJL(FILE *f, struct obj *p, int t, int offset) {
 }
 
 static void emit_obj(FILE *f, struct obj *p, int t) {
-    /* NOT USED
-    if(p->am){
-        if(p->am->flags&GPR_IND) emit(f,"(%s,%s)",regnames[p->am->offset],regnames[p->am->base]);
-        if(p->am->flags&IMM_IND) emit(f,"(%ld,%s)",p->am->offset,regnames[p->am->base]);
-        return;
-    }
-    */
     if ((p->flags & (KONST | DREFOBJ)) == (KONST | DREFOBJ)) {
         emitval(f, &p->val, p->dtyp & NU);
         return;
@@ -1040,6 +1081,8 @@ void gen_code(FILE *f, struct IC *p, struct Var *v, zmax offset)
     struct IC *m;
     argsize = 0;
     if (DEBUG & 1) printf("gen_code()\n");
+    printf("gen_code() frame=%ld\n", offset);
+    fflush(stdout);
 
     // JL REGSA = LIST OF REG IN USE AT START OF FN - IE ALREADY IN USE
     // JL REGS  = LIST OF REG IN USE DURING FN - SO INIT FROM REGSA
@@ -1070,20 +1113,14 @@ void gen_code(FILE *f, struct IC *p, struct Var *v, zmax offset)
         t = p->typf;
 
         printf("\n=================================================================== NEW INST %s\n", ename[c]);
-        emit(f, "\n; ------ %s\n", ename[c]);
-
-        printf("\nDUMP...\n");
         dumpIC(stdout, p);
-        printf("PRIC2...\n");
-        pric2(stdout, p);
-        printf("-----\n");
 
         if (c == NOP) {
             p->z.flags = 0;
             continue;
         }
         if (c == ALLOCREG) {
-            emit(f, "; ALLOCREG - %s\n", regnames[p->q1.reg]);
+            emit(f, "; ALLOCREG - %s\n", regnames[getReg(&p->q1)]);
             regs[p->q1.reg] = 1;
             continue;
         }
@@ -1254,13 +1291,15 @@ void gen_code(FILE *f, struct IC *p, struct Var *v, zmax offset)
                 emit(f, "\n");
                 push(zm2l(p->q2.val.vmax));
 #endif
+                puts("NOT IMPL "); ierror(2); // JL
                 continue;
             }
             if (c == ASSIGN) {
-                emit(f, "; ASSIGN %s %s\n", dt(t), regnames[p->z.reg]);
+                emit(f, "; ASSIGN %s %s\n", dt(t), regnames[getReg(&p->q1)]);
                 load_reg(f, zreg, &p->q1, t);
                 save_result(f, p);
             }
+            emit(f, "; END ASSIGN/PUSH\n");
             continue;
         }
         if (c == ADDRESS) {
@@ -1457,6 +1496,11 @@ void gen_code(FILE *f, struct IC *p, struct Var *v, zmax offset)
     emit(f, "# stacksize=%lu%s\n", zum2ul(stack), stack_valid ? "" : "+??");
 }
 
+/*
+ * push FP
+ * move SP -> FP locking the bottom (high address) of the frame
+ *
+ * */
 void gc_call(FILE *f, struct IC *p) {
     int t = p->typf;
 
@@ -1466,7 +1510,7 @@ void gc_call(FILE *f, struct IC *p) {
     if ((p->q1.flags & (VAR | DREFOBJ)) == VAR && p->q1.v->fi && p->q1.v->fi->inline_asm) {
         emit_inline_asm(f, p->q1.v->fi->inline_asm);
     } else {
-        emit(f, "\tcall\t");
+        emit(f, "\t; call\t");
         emit_obj(f, &p->q1, t);
         emit(f, "\n");
     }
@@ -1493,7 +1537,7 @@ void gc_getreturn(FILE *f, struct IC *p) {
 
     if (p->q1.reg) {
         /* Is the target a register ? */
-        if (isRegP(&p->z)) {
+        if (isReg(&p->z)) {
             int targ = p->z.reg;
             int src = p->q1.reg;
             //save_result(f, p);
@@ -1501,16 +1545,16 @@ void gc_getreturn(FILE *f, struct IC *p) {
             emit(f, "\tREGA = [:%s]\n", regnames[src]);
             emit(f, "\t[:%s] = REGA\n", regnames[targ]);
             fprintf(stderr, "z is a register\n");
-            dumpObj(f, "z", &p->z, ztyp(p));
+            dumpObj(f, "z", &p->z, ztyp(p), p);
         } else {
             fprintf(stderr, "z is not a register\n");
-            dumpObj(f, "z", &p->z, ztyp(p));
+            dumpObj(f, "z", &p->z, ztyp(p), p);
             ierror(0);
         }
     } else {
         //  p->z.flags = 0;
         fprintf(stderr, "not q1.reg is 0\n");
-        dumpObj(f, "q1", &p->q1, q1typ(p));
+        dumpObj(f, "q1", &p->q1, q1typ(p), p);
         ierror(0);
     }
     printf("===");
@@ -1554,19 +1598,24 @@ void cleanup_db(FILE *f) {
     if (f) section = -1;
 }
 
-void dumpObj(FILE *f, char * label, struct obj *o, int otyp) {
-    printf("DUMP %s <", label);
+void dumpObj(FILE *f, char * label, struct obj *o, int otyp, struct IC* p) {
+    printf("\tDUMP %s <", label);
+    fflush(stdout);
+//    printf("'%s' ", ((o==NULL)? "ONULL": ((o->v==NULL)?"VNULL": (o->v->identifier)==NULL?"INULL":o->v->identifier)));
+    if (o->flags==0) {
+        printf(" FLAG:%d ", o->flags);
+    }
 
-    if (o->flags == (KONST | DREFOBJ)) {  // const pointer
-        printf(" K|D:");
+    if (o->flags == KONST) {  // const val
+        printf(" KONST:");
         emitval(stdout, &o->val, otyp);
     }
-    if (o->flags == KONST) {  // const val
-        printf(" K:");
+    if (o->flags == (KONST | DREFOBJ)) {  // const pointer
+        printf(" KONST|DREFOBJ:");
         emitval(stdout, &o->val, otyp);
     }
     if (o->flags & REG) {
-        printf(" ISREG:%s", regnames[o->reg]);
+        printf(" REG:%s", regnames[o->reg]);
     }
     if (o->flags & DREFOBJ) {
         printf(" DREFOBJ");
@@ -1576,11 +1625,13 @@ void dumpObj(FILE *f, char * label, struct obj *o, int otyp) {
     }
     if (o->flags & VAR) {
         printf(" VAR");
+
+        printf(" STORAGE:");
         if (o->v->storage_class == AUTO) {
-            printf(" AUTO");
+            printf("AUTO");
             printf(":%ld(%s)", real_offset(o), regnames[SP]);
         } else if (o->v->storage_class == REGISTER) {
-            printf(" REGISTER");
+            printf("REGISTER");
             printf(":%ld(%s)", real_offset(o), regnames[SP]);
         } else {
             // add sign
@@ -1589,31 +1640,73 @@ void dumpObj(FILE *f, char * label, struct obj *o, int otyp) {
                 printf("+");
             }
             if (o->v->storage_class == STATIC) {
-                printf(" STATIC:%s%ld", labprefix, zm2l(o->v->offset));
+                printf("STATIC:%s%ld", labprefix, zm2l(o->v->offset));
             } else if (o->v->storage_class == EXTERN) {
-                printf(" EXTERN:%s%ld", labprefix, zm2l(o->v->offset));
+                printf("EXTERN:%s%ld", labprefix, zm2l(o->v->offset));
             } else {
-                printf(" NONSTATC:%s%s", idprefix, o->v->identifier);
+                printf("NONSTATC:%s%s", idprefix, o->v->identifier);
             }
         }
     }
     printf(" >");
     fflush(stdout);
+    char *id = NULL;
+    if (p->code != ALLOCREG && p->code != FREEREG)
+//    if (isVar( o ))
+if (o->flags != KONST && o->flags != 0 )
+        if (o->v != NULL)
+            if (o->v->identifier != NULL)
+                id = o->v->identifier;
+
+//    char* id = ((o==NULL)? "ONULL": ((o->v==NULL)?"VNULL": (o->v->identifier)==NULL?"INULL":o->v->identifier));
+    if (id != NULL) printf(" '%s' ", id);
+    fflush(stdout);
 }
 
 void dumpIC(FILE *f, struct IC *p) {
-    emit(f, "\tDUMP code = %s(%d)", ename[p->code], p->code);
+    int c = p->code;
+
+    if (c == ALLOCREG || c == FREEREG) {
+        return;
+    }
+
+    emit(f, "\tDUMP code = %s", ename[p->code]);
     emit(f, "\n");
 
-    emit(f, "\tDUMP z=");
-    dumpObj(f, "z", &p->z, ztyp(p));
+    dumpObj(f, "z", &p->z, ztyp(p), p);
     emit(f, "\n");
 
-    emit(f, "\tDUMP q1=");
-    dumpObj(f, "q1", &p->q1, q1typ(p));
+    dumpObj(f, "q1", &p->q1, q1typ(p), p);
     emit(f, "\n");
 
-    emit(f, "\tDUMP q2=");
-    dumpObj(f, "q2", &p->q2, q2typ(p));
+    dumpObj(f, "q2", &p->q2, q2typ(p), p);
     emit(f, "\n");
+
+    printf("PRIC2...\n");
+    pric2(stdout, p);
+    printf("-----\n");
 }
+int reg_parm(struct reg_handle *m, struct Typ *t, int vararg, struct Typ *d)
+{
+    int f;
+    f = t->flags & NQ;
+    if(is_varargs(d))	/* Disallow register parameters for varargs functions */
+        return(0);
+
+    if (f <= LONG || f == POINTER) {
+        if (m->gregs >= REGPARM_COUNT)
+            return 0;
+        else
+            return R_GA;
+    }
+    if (ISFLOAT(f)) {
+        return(0);
+/*		if (m->fregs >= 0)
+			return 0;
+		else
+			return FIRST_FPR + 2 + m->fregs++;
+*/
+    }
+    return 0;
+}
+
