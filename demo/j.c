@@ -11,27 +11,32 @@ extern int externalFn2();
 int static1=1;
 int static2=2;
 
-int sub(int e) {
-  int o = externalFn(); // will cause gen_var_header
-  o = externalFn2(); // will cause gen_var_header
-  return e;
-}
+int sub(int subParamA, int subParamB, int subParamC, int subParamD, int subParamE, int subParamF   );
 
 int main() {
-    long myLong=0xbeaf;
-    long yourLong=0xfefe;
+    short  myShort=0xbeaf;
+    long myLong=0xfefe;
 
-    if (myLong == yourLong) {
+    if (myLong == myLong) {
         myLong=0xaa;
     }
     else 
     {
-        myLong=0xbb + yourLong;
+        myLong=0xbb + myLong;
     }
 
-    int o = sub(123);
-    return 99;
+    int o = sub(11, 22, 33, 44, 55, 66);
+    return (int)myLong;
 
   //  return myInt;
 }
 
+int sub(int subParamA, int subParamB, int subParamC, int subParamD, int subParamE, int subParamF   )
+{
+  int subVar1=subParamA;
+  int subVar2=subParamB + subParamC + subParamD + subParamE + subParamF;
+  int subVarC=subVar1;
+  sub(subVar1, subVar2, subParamC, 3,3,3);
+  sub(subVar1, subVar2, subParamC, 3,3,3);
+  return subVar1;
+}

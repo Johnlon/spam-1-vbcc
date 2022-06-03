@@ -7,6 +7,7 @@ LDFLAGS = -lm
 NCC = $(CC)
 NLDFLAGS = $(LDFLAGS)
 TARGET=g
+#TARGET=fire16
 
 all: bin/vc bin/vprof bin/vbcc$(TARGET) #bin/vcpp
 	echo copying

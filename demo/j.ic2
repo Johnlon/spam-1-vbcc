@@ -1,37 +1,74 @@
-function sub
-	allocreg gpr7
-	move int M0+-8(FP)(e)->gpr7 size=4
-	allocreg gpr6
-	call function M0+_externalFn(externalFn) size=0 => externalFn
-	allocreg gpr0
-	get-return int ->gpr6(o)
-	freereg gpr0
-	call function M0+_externalFn2(externalFn2) size=0 => externalFn2
-	allocreg gpr0
-	get-return int ->gpr6(o)
-	freereg gpr0
-	set-return int gpr7(e)
-L1
 function main
 	allocreg gpr8
 	allocreg gpr7
 	allocreg gpr6
-	move long #L48815->gpr6(myLong) size=4
-	move long #L65278->gpr7(yourLong) size=4
-	compare long gpr6(myLong),gpr7(yourLong)
-	bne L6
-L5
+	move short #S-16721->gpr7(myShort) size=2
+	move long #L65278->gpr6(myLong) size=4
+	compare long gpr6(myLong),gpr6(myLong)
+	bne L4
+L3
 	move long #L170->gpr6(myLong) size=4
-	bra L7
-L6
+	bra L5
+L4
 	allocreg gpr0
-	add long gpr7(yourLong),#L187->gpr6(myLong)
+	add long gpr6(myLong),#L187->gpr6(myLong)
 	freereg gpr0
-L7
-	push int #I123 size=4
-	call function M0+_sub(sub) size=4 => sub
+L5
+	push int #I11 size=4
+	push int #I22 size=4
+	push int #I33 size=4
+	push int #I44 size=4
+	push int #I55 size=4
+	push int #I66 size=4
+	call function M0+_sub(sub) size=24 => sub
 	allocreg gpr0
 	get-return int ->gpr8(o)
 	freereg gpr0
-	set-return int #I99
-L3
+	set-return int gpr6(myLong)
+L1
+function sub
+	allocreg gpr14
+	allocreg gpr13
+	move int M0+-28(FP)(subParamF)->gpr13 size=4
+	allocreg gpr12
+	move int M0+-24(FP)(subParamE)->gpr12 size=4
+	allocreg gpr11
+	move int M0+-20(FP)(subParamD)->gpr11 size=4
+	allocreg gpr10
+	move int M0+-12(FP)(subParamB)->gpr10 size=4
+	allocreg gpr9
+	move int M0+-8(FP)(subParamA)->gpr9 size=4
+	allocreg gpr8
+	allocreg gpr7
+	move int M0+-16(FP)(subParamC)->gpr7 size=4
+	allocreg gpr6
+	move int gpr9(subParamA)->gpr6(subVar1) size=4
+	allocreg gpr0
+	add int gpr10(subParamB),gpr7(subParamC)->gpr0[S]
+	add int gpr0[S],gpr11(subParamD)->gpr0[S]
+	add int gpr0[S],gpr12(subParamE)->gpr0[S]
+	add int gpr0[S],gpr13(subParamF)->gpr8(subVar2)
+	freereg gpr0
+	move int gpr6(subVar1)->gpr14(subVarC) size=4
+	push int gpr6(subVar1) size=4
+	push int gpr8(subVar2) size=4
+	push int gpr7(subParamC) size=4
+	push int #I3 size=4
+	push int #I3 size=4
+	push int #I3 size=4
+	call function M0+_sub(sub) size=24 => sub
+	allocreg gpr0
+	get-return int ->gpr0[S]
+	freereg gpr0
+	push int gpr6(subVar1) size=4
+	push int gpr8(subVar2) size=4
+	push int gpr7(subParamC) size=4
+	push int #I3 size=4
+	push int #I3 size=4
+	push int #I3 size=4
+	call function M0+_sub(sub) size=24 => sub
+	allocreg gpr0
+	get-return int ->gpr0[S]
+	freereg gpr0
+	set-return int gpr6(subVar1)
+L6

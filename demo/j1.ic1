@@ -1,3 +1,0 @@
-function bar
-	move int M0+_statOut(statOut)->M0+0(FP)(r) size=2
-L1

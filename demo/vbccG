@@ -1,3 +1,4 @@
- export VBCC=/home/john/work/vbcc/dist/
- export PATH=/home/john/work/vbcc/dist//bin:$PATH/
- ../dist/bin/vc -S $FLAGS  +g.config j.c  
+export VBCC=/home/john/work/vbcc/dist/
+export PATH=/home/john/work/vbcc/dist//bin:$PATH/
+
+../dist/bin/vc -S $FLAGS  +g.config j.c   2>&1
