@@ -584,7 +584,7 @@ void gc_address(FILE *f, struct IC *p);
 
 void gc_bra(FILE *f, int t);
 
-static int q1reg, q2reg, zreg;
+//static int q1reg, q2reg, zreg;
 
 static char *ccs[] = {"eq", "ne", "lt", "ge", "le", "gt", ""};
 static char *logicals[] = {"or", "xor", "and"};
@@ -620,9 +620,9 @@ static int compare_objects(struct obj *o1, struct obj *o2) {
 static struct IC *preload(FILE *f, struct IC *p) {
     int r;
 
-    q1reg = q1Reg(p);
-    q2reg = q2Reg(p);
-    zreg = zReg(p);
+    //q1reg = q1Reg(p);
+    //q2reg = q2Reg(p);
+    //zreg = zReg(p);
 
     // if pointer and not reg (and no amode) then load it into temp reg << why tho??
     /*
@@ -1337,6 +1337,7 @@ void gen_code(FILE *f, struct IC *p, struct Var *v, zmax offset)
         if (c == KOMPLEMENT) {
             emit(f, "KOMPLEMENT\n");
 
+            int zreg = zReg(p);
             load_reg(f, zreg, &p->q1, t);
             emit(f, "\tcpl.%s\t%s\n", dt(t), regnames[zreg]);
             save_result(f, p, zreg);
@@ -1388,6 +1389,7 @@ void gen_code(FILE *f, struct IC *p, struct Var *v, zmax offset)
                      regnames[getReg(&p->q1)],
                      regnames[getReg(&p->z)]
                 );
+                int zreg = zReg(p);
                 load_reg(f, zreg, &p->q1, t);
                 save_result(f, p, zreg);
             }
@@ -1399,6 +1401,7 @@ void gen_code(FILE *f, struct IC *p, struct Var *v, zmax offset)
         }
         if (c == MINUS) {
             emit(f, "MINUS\n");
+            int zreg = zReg(p);
             load_reg(f, zreg, &p->q1, t);
             emit(f, "\tneg.%s\t%s\n", dt(t), regnames[zreg]);
             save_result(f, p, zreg);
@@ -1406,6 +1409,7 @@ void gen_code(FILE *f, struct IC *p, struct Var *v, zmax offset)
         }
         if (c == TEST) {
             emit(f, "TEST\n");
+            int zreg = zReg(p);
             emit(f, "\ttst.%s\t", dt(t));
             if (multiple_ccs)
                 emit(f, "%s,", regnames[zreg]);
@@ -1543,8 +1547,10 @@ void gen_code(FILE *f, struct IC *p, struct Var *v, zmax offset)
                 emit(f, ",");
                 emit_obj(f, &p->q2, t);
                 emit(f, "\n");
-                if (multiple_ccs)
+                if (multiple_ccs) {
+                    int zreg = zReg(p);
                     save_result(f, p, zreg);
+                }
                 continue;
             }
             continue;
@@ -1553,8 +1559,12 @@ void gen_code(FILE *f, struct IC *p, struct Var *v, zmax offset)
 
         if ((c >= OR && c <= AND) || (c >= LSHIFT && c <= MOD)) {
             emit(f, "; OR AND SHIFT MOD \n");
-            if (!THREE_ADDR)
+            int zreg = zReg(p);
+            /*
+            if (!THREE_ADDR) {
                 load_reg(f, zreg, &p->q1, t);
+            }
+             */
             if (c >= OR && c <= AND)
                 emit(f, "\t; ORIG %s.%s\t%s,", logicals[c - OR], dt(t), regnames[zreg]);
             else
@@ -1604,6 +1614,7 @@ z is always a pointer and q1 is always an auto variable
 void gc_address(FILE *f, struct IC *p) {
     emit(f, "; ADDRESS TODO\n");
     ierror(1);
+    int zreg = zReg(p);
     load_address(f, zreg, &p->q1, POINTER);
     save_result(f, p, zreg);
 }
@@ -1615,6 +1626,7 @@ Conversions between floating point and pointers do not occur, neither do convers
  */
 void gc_convert(FILE *f, struct IC *p) {
     emit(f, "; CONVERT   z <- q1\n");
+    int zreg = zReg(p);
 
     if (ISFLOAT(q1typ(p)) || ISFLOAT(ztyp(p))) ierror(0);
 
