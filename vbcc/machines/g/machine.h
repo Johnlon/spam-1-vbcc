@@ -1,3 +1,5 @@
+#ifndef MACHINE_H
+#define MACHINE_H
 /*  Example backend for vbcc, it models a generic 32bit RISC or CISC
     CPU.
 
@@ -42,7 +44,7 @@ enum {
     R_FTMP1, R_FTMP2,
     R_G0, R_G1, R_G2, R_G3, R_G4, R_G5, R_G6, R_G7, R_G8, R_G9, R_GA, R_GB, R_GC, R_GD, R_GE, R_GF,
     R_F0, R_F1, R_F2, R_F3, R_F4, R_F5, R_F6, R_F7, R_F8, R_F9, R_FA, R_FB, R_FC, R_FD, R_FE, R_FF,
-    FP,
+    SP_STASH,
     SP
 };
 
@@ -165,3 +167,5 @@ struct reg_handle{
 
 /* convert multiplications/division by powers of two to shifts */
 #define HAVE_POF2OPT 1
+
+#endif

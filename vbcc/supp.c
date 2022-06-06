@@ -845,17 +845,6 @@ void pric2(FILE *f,IC *p)
     }
     if(p->flags&EFF_IC) fprintf(f," (eff_ic)");
     fprintf(f,"\n");
-#if 0
-    if(p->code==CALL){
-        int i;
-        //fprintf(f,"c=%p\n",p);
-        for(i=0;i<p->arg_cnt;i++){
-            //fprintf(f,"%p!\n",p->arg_list[i]);
-            fprintf(f,"%02d:",i);
-            pric2(f,p->arg_list[i]);
-        }
-    }
-#endif
 }
 void pric(FILE *f,IC *p)
     /*  Gibt IC-Liste auf dem Bildschirm aus.             */
