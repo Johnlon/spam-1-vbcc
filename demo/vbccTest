@@ -1,0 +1,7 @@
+T=$1
+
+export VBCC=/home/john/work/vbcc/dist/
+export PATH=/home/john/work/vbcc/dist//bin:$PATH/
+
+# turn off optimisations of inline asm
+../dist/bin/vc -S $FLAGS -no-inline-peephole  +g.config test$T.c   2>&1

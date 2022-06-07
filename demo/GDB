@@ -1,0 +1,1 @@
+run d.c -I/home/john/work/vbcc/dist//targets/6502-bbc/include

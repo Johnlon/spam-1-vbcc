@@ -17,7 +17,7 @@
  * regs and regused - not explained.
  * regs[] is initialised at start of function to contain regsa[] which are those reg's already in use.
  *
- * regtype = no discussion on this nor why it's appropriate to set only the "flags" fields of Typ in the ltyp/ldbl/lchar initialiser
+ * regtype = no discussion on this nor why it's appropriate to set only the "flags" fields of Typ in the llong/ldbl/lchar initialiser
  *
  * */
 void push(int ignored) {
@@ -39,6 +39,8 @@ void push(int ignored) {
 void konstCopy(FILE *f, char *targName, int targSize, struct obj *src, int srcType);
 
 void memCopy(FILE *f, int isSigned, char *targName, char *srcName, int targSize, int srcSize);
+
+int firstFn=1;
 
 /*
 #define KONST 1
@@ -244,7 +246,7 @@ static long malign[MAX_TYPE + 1] = {0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 static long msizetab[MAX_TYPE + 1] = {0, 1, 2, 4, 4, 8, 4, 8, 8, 0, 4, 0, 0, 0, 4, 0};
 
 /* used to initialize regtyp[] */
-static struct Typ ltyp = {LONG}, ldbl = {DOUBLE}, lchar = {CHAR};
+static struct Typ llong = {LONG}, ldbl = {DOUBLE}, lchar = {CHAR};
 
 /* macros defined by the backend */
 static char *marray[] = {"__section(x)=__vattr(\"section(\"#x\")\")",
@@ -267,11 +269,13 @@ const char *dt(int t) {
 
 static long stack;
 static int stack_valid;
+/*
 static int section = -1, newobj;
 static char *codename = "\t.text\n",
         *dataname = "\t.data\n",
         *bssname = "",
         *rodataname = "\t.section\t.rodata\n";
+        * */
 
 /* return-instruction */
 //static char *ret;
@@ -280,7 +284,7 @@ static char *codename = "\t.text\n",
 static int exit_label;
 
 /* assembly-prefixes for labels and external identifiers */
-static char *labprefix = "l", *idprefix = "_";
+static char *labprefix = "_L", *idprefix = "_";
 
 #if FIXED_SP
 /* variables to calculate the size and partitioning of the stack-frame
@@ -385,6 +389,7 @@ return &obj;
 */
 
 /* changes to a special section, used for __section() */
+/*
 static int special_section(FILE *f, struct Var *v) {
     char *sec;
     if (!v->vattr) return 0;
@@ -397,6 +402,7 @@ static int special_section(FILE *f, struct Var *v) {
     if (f) section = SPECIAL;
     return 1;
 }
+ */
 
 /* generate code to load the address of a variable into register r */
 static void load_address(FILE *f, int r, struct obj *o, int type)
@@ -513,13 +519,13 @@ void emitvalJL(FILE *f, union atyps *p, int t, int byteToEmit) {
 static void load_reg(FILE *f, int targReg, struct obj *o, int type) {
     type &= NU;
     if (o->flags & VARADR) {
-        fprintf(stderr, "\t; load_reg VARADR - %s(%s) <= address\n", regnames[targReg], dt(type));
+        emit(f, "\t; load_reg VARADR - %s(%s) <= address\n", regnames[targReg], dt(type));
         load_address(f, targReg, o, POINTER);
         return;
     }
 
     if (isReg(o) && o->reg == targReg) {
-        fprintf(stderr, "\t; load_reg skipping redundant self-copy of %s\n", regnames[targReg]);
+        emit(f, "\t; load_reg skipping redundant self-copy of %s\n", regnames[targReg]);
         // avoid copying reg to self if source is a reg and the same reg is the target
         return;
     }
@@ -560,18 +566,17 @@ static void load_reg(FILE *f, int targReg, struct obj *o, int type) {
 
         // save marlo which hold the SP
         emit(f, "\t; stash SP\n");
-        emit(f, "\t[:SP_STASH]   = MARLO\n");
-        emit(f, "\t[:SP_STASH+1] = MARHI\n");
+        emit(f, "\t[:sp_stash]   = MARLO\n");
+        emit(f, "\t[:sp_stash+1] = MARHI\n");
 
         // adjust the MAR according to the offset
         int offset = real_offset(o);
 
         emit(f, "\t; adjust SP by offset %d\n", offset);
-        emit(f, "\tMARLO = MARLO + (> %d)               ; add lo byte of offset\n", offset);
+        emit(f, "\tMARLO = MARLO + (> %d) _S            ; add lo byte of offset\n", offset);
         emit(f, "\tMARHI = MARHI A_PLUS_B_PLUS_C (< %d) ; add hi byte of offset plus any carry\n", offset);
 
         // MAR now points at low address base of value
-        int pos = 0;
 
         int size = msizetab[BASETYPE(type)];
         if (size == 0) {
@@ -580,8 +585,10 @@ static void load_reg(FILE *f, int targReg, struct obj *o, int type) {
         }
 
         emit(f, "\t; copy %d bytes\n", size);
+        int pos = 0;
         while (pos < size) {
-            emit(f, "\t[:%s+%d] = RAM\n", regnames[targReg], size - pos - 1);
+            emit(f, "\tREGA     = RAM\n");
+            emit(f, "\t[:%s+%d] = REGA\n", regnames[targReg], pos);
 
             emit(f, "\tMARLO = MARLO + 1 _S\n");
             emit(f, "\tMARHI = MARHI A_PLUS_B_PLUS_C 0\n");
@@ -591,8 +598,8 @@ static void load_reg(FILE *f, int targReg, struct obj *o, int type) {
 
         // restore marlo which hold the SP
         emit(f, "\t; restore SP\n");
-        emit(f, "\tMARLO = [:SP_STASH]\n");
-        emit(f, "\tMARHI = [:SP_STASH+1]\n");
+        emit(f, "\tMARLO = [:sp_stash]\n");
+        emit(f, "\tMARHI = [:sp_stash+1]\n");
         return;
     }
 
@@ -653,6 +660,8 @@ void gc_setreturn(FILE *f, struct IC *p);
 void gc_allocreg(FILE *f, struct IC *p);
 
 void gc_freereg(FILE *f, struct IC *p);
+
+void gc_compare(FILE *f, struct IC *p);
 
 static char *ccs[] = {"eq", "ne", "lt", "ge", "le", "gt", ""};
 static char *logicals[] = {"or", "xor", "and"};
@@ -869,24 +878,33 @@ static int exists_freereg(struct IC *p, int reg) {
 /* generates the function entry code */
 static void function_top(FILE *f, struct Var *v, long offset) {
     rsavesize = 0;
-    if (!special_section(f, v) && section != CODE) {
+    if (firstFn && strcmp(v->identifier, "main") != 0) {
+        emit(f, "; jump to _main\n");
+        emit(f, "PCHITMP   = < :_main\n");
+        emit(f, "PC        = > :_main\n");
+    }
+    firstFn = 1;
+
+
+/*    if (!special_section(f, v) && section != CODE) {
         emit(f, codename);
         if (f) section = CODE;
     }
+    */
     if (v->storage_class == EXTERN) {
         if ((v->flags & (INLINEFUNC | INLINEEXT)) != INLINEFUNC)
-            emit(f, "\t.global\t%s%s\n", idprefix, v->identifier);
-        emit(f, "%s%s:\n", idprefix, v->identifier);
+   //         emit(f, "\t.global\t%s%s\n", idprefix, v->identifier);
+            emit(f, "%s%s:\n", idprefix, v->identifier);
     } else
         emit(f, "%s%ld:\n", labprefix, zm2l(v->offset));
 
     if (strcmp(v->identifier, "main") == 0) {
-        // is main routing
-        emit(f, "MARLO=0\n");
-        emit(f, "MARHI=0\n");
+        emit(f, "; _main routine\n");
         // stack starts at top of 64k memory
-        emit(f, "[:sp]=$ff\n");
-        emit(f, "[:sp+1]=$ff\n");
+        emit(f, "[:sp]   = $ff\n");
+        emit(f, "[:sp+1] = $ff\n");
+        emit(f, "MARLO   = [:sp]\n");
+        emit(f, "MARHI   = [:sp+1]\n");
     }
 }
 
@@ -895,18 +913,25 @@ static void function_bottom(FILE *f, struct Var *v, long offset) {
     emit(f, "; FUNCTION BOTTOM\n");
     if (offset) {
         emit(f, "\t; adjust SP to rewind over the variable stack by offset %d\n", offset);
-        emit(f, "\tMARLO = MARLO + (> %d)               ; add lo byte of offset\n", offset);
+        emit(f, "\tMARLO = MARLO + (> %d) _S            ; add lo byte of offset\n", offset);
         emit(f, "\tMARHI = MARHI A_PLUS_B_PLUS_C (< %d) ; add hi byte of offset plus any carry\n", offset);
     }
 
     emit(f, "\t; return\n");
+
+    emit(f, "\t; pop PCHITMP\n");
     emit(f, "\tPCHITMP = RAM\n");
-    emit(f, "\tMARLO = MARLO + 1 _S\n");
-    emit(f, "\tMARHI = MARHI A_PLUS_B_PLUS_C 0\n");
-    emit(f, "\tREGA = RAM\n");
-    emit(f, "\tMARLO = MARLO + 1 _S\n");
-    emit(f, "\tMARHI = MARHI A_PLUS_B_PLUS_C 0\n");
-    emit(f, "\tPCHI = REGA\n");
+    emit(f, "\tMARLO   = MARLO + 1 _S\n");
+    emit(f, "\tMARHI   = MARHI A_PLUS_B_PLUS_C 0\n");
+    emit(f, "\t; pop PC\n");
+    emit(f, "\tREGA    = RAM\n");
+    emit(f, "\tMARLO   = MARLO + 1 _S\n");
+    emit(f, "\tMARHI   = MARHI A_PLUS_B_PLUS_C 0\n");
+    emit(f, "\t; pop 2 unused PC byes\n");
+    emit(f, "\tMARLO   = MARLO + 2 _S\n");
+    emit(f, "\tMARHI   = MARHI A_PLUS_B_PLUS_C 0\n");
+    emit(f, "\t; do jump\n");
+    emit(f, "\tPC      = REGA\n");
 
     /* saved registers
     for (i = sp - 1; i > 0; i--) {
@@ -915,7 +940,8 @@ static void function_bottom(FILE *f, struct Var *v, long offset) {
         }
     }
      */
-    emit(f, "\tret\n");
+
+    emit(f, "\t; returned\n");
 }
 
 /****************************************/
@@ -942,19 +968,19 @@ int init_cg(void) {
         regnames[i] = mymalloc(10);
         sprintf(regnames[i], "gtmp%d", i - R_GTMP1 + 1);
         regsize[i] = l2zm(4L);
-        regtype[i] = &ltyp;
+        regtype[i] = &llong;
     }
     for (i = R_FTMP1; i <= R_FTMP2; i++) {
         regnames[i] = mymalloc(10);
         sprintf(regnames[i], "ftmp%d", i - R_FTMP1 + 1);
-        regsize[i] = l2zm(4L);
+        regsize[i] = l2zm(8L);
         regtype[i] = &ldbl;
     }
     for (i = R_G0; i <= R_GF; i++) {
         regnames[i] = mymalloc(10);
         sprintf(regnames[i], "gpr%d", i - R_G0);
         regsize[i] = l2zm(4L);
-        regtype[i] = &ltyp;
+        regtype[i] = &llong;
     }
     for (i = R_F0; i <= R_FF; i++) {
         regnames[i] = mymalloc(10);
@@ -966,12 +992,12 @@ int init_cg(void) {
     regnames[SP] = mymalloc(10);
     sprintf(regnames[SP], "sp");
     regsize[SP] = l2zm(2L);
-    regtype[SP] = &ltyp;
+    regtype[SP] = &llong;
 
     regnames[SP_STASH] = mymalloc(10);
     sprintf(regnames[SP_STASH], "sp_stash");
     regsize[SP_STASH] = l2zm(2L);
-    regtype[SP_STASH] = &ltyp;
+    regtype[SP_STASH] = &llong;
 
     /*  Use multiple ccs.   */
     multiple_ccs = 0;
@@ -1135,29 +1161,34 @@ int must_convert(int o, int t, int const_expr)
 }
 
 void gen_ds(FILE *f, zmax size, struct Typ *t)
-/*  This function has to create <size> bytes of storage */
-/*  initialized with zero.                              */
+//  This function has to create <size> bytes of storage
+//  initialized with zero.
 {
+/*
     if (newobj && section != SPECIAL)
         emit(f, "%ld\n", zm2l(size));
     else
         emit(f, "\t.space\t%ld\n", zm2l(size));
     newobj = 0;
+    */
 }
 
+/*
 void gen_align(FILE *f, zmax align)
-/*  This function has to make sure the next data is     */
-/*  aligned to multiples of <align> bytes.              */
+//  This function has to make sure the next data is
+//  aligned to multiples of <align> bytes.
 {
     if (zm2l(align) > 1) emit(f, "\t.align\t2\n");
-}
+}*/
+
 
 void gen_var_head(FILE *f, struct Var *v)
-/*  This function has to create the head of a variable  */
-/*  definition, i.e. the label and information for      */
-/*  linkage etc.                                        */
+//  This function has to create the head of a variable
+//  definition, i.e. the label and information for
+//  linkage etc.
 {
 
+    /*
     emit(f, "\t;JL gen_var_head\n");
 
     int constflag;
@@ -1212,17 +1243,19 @@ void gen_var_head(FILE *f, struct Var *v)
             newobj = 1;
         }
     }
+     */
 }
 
 void gen_dc(FILE *f, int t, struct const_list *p)
-/*  This function has to create static storage          */
-/*  initialized with const-list p.                      */
+//  This function has to create static storage
+//  initialized with const-list p.
 {
+    /*
     emit(f, "\t;JL gen_dc\n");
     emit(f, "\tdc.%s\t", dt(t & NQ));
     if (!p->tree) {
         if (ISFLOAT(t)) {
-            /*  auch wieder nicht sehr schoen und IEEE noetig   */
+            //  auch wieder nicht sehr schoen und IEEE noetig
             unsigned char *ip;
             ip = (unsigned char *) &p->val.vdouble;
             emit(f, "0x%02x%02x%02x%02x", ip[0], ip[1], ip[2], ip[3]);
@@ -1237,6 +1270,7 @@ void gen_dc(FILE *f, int t, struct const_list *p)
     }
     emit(f, "\n");
     newobj = 0;
+*/
 }
 
 // JL6502 impl flips the sense of the comparisons - presumably for cpu efficiency
@@ -1441,141 +1475,7 @@ void gen_code(FILE *f, struct IC *p, struct Var *v, zmax offset)
             continue;
         }
         if (c == COMPARE) {
-            int t = p->typf;
-            emit(f, "; COMPARE START ========\n");
-
-            emit(f, "\t; ORIGINAL ASM: \t");
-            emit(f, "\tcmp.%s\t", dt(t));
-            emit_obj(f, &p->q1, t);
-            emit(f, ",");
-            emit_obj(f, &p->q2, t);
-            emit(f, "\n");
-
-            struct obj *q1 = &p->q1;
-
-            int q1Reg = getReg(&(p->q1));
-            int q2Reg = getReg(&(p->q2));
-
-            // const usually in q2, one source is always non-const
-            /*
-            fprintf(stderr, "OBJ DUMP: ");
-            pric2(stderr, p);
-
-            if (p->q1.flags) {
-                fprintf(stderr, " @@q1 ");
-                probj(stderr, &p->q1, 0);
-                fprintf(stderr, "\n");
-            }
-            if (p->q2.flags) {
-                fprintf(stderr, " @@q2 ");
-                probj(stderr, &p->q2, 0);
-                fprintf(stderr, "\n");
-            }
-            if (p->z.flags) {
-                fprintf(stderr, " @@z ");
-                probj(stderr, &p->z, 0);
-                fprintf(stderr, "\n");
-            }
-
-            if (isreg(z)) fprintf(stderr, "z  ISREG (%s)\n", regnames[p->z.reg]);
-            if (isreg(q1)) fprintf(stderr, "q1 ISREG (%s)\n", regnames[p->q1.reg]);
-            if (isreg(q2)) fprintf(stderr, "q2 ISREG (%s)\n", regnames[p->q2.reg]);
-            if (isconst(z)) fprintf(stderr, "z  ISCONST (%s)\n", regnames[p->z.reg]);
-            if (isconst(q1)) fprintf(stderr, "q1 ISCONST (%s)\n", regnames[p->q1.reg]);
-            if (isconst(q2)) fprintf(stderr, "q2 ISCONST (%s)\n", regnames[p->q2.reg]);
-            if (isconstderef(z)) fprintf(stderr, "z  ISCONST|DREFOBJ (%s)\n", regnames[p->z.reg]);
-            if (isconstderef(q1)) fprintf(stderr, "q1 ISCONST|DREFOBJ (%s)\n", regnames[p->q1.reg]);
-            if (isconstderef(q2)) fprintf(stderr, "q2 ISCONST|DREFOBJ (%s)\n", regnames[p->q2.reg]);
-            if (isreg(q2)) fprintf(stderr, "q2 ISREG (%s)\n", regnames[p->q2.reg]);
-            if (isvar(q2)) fprintf(stderr, "q2 ISVAR|DREFOBJ (%s)\n", regnames[p->q2.reg]);
-            if (isvarreg(q2)) fprintf(stderr, "q2 ISVAR|REG (%s)\n", regnames[p->q2.reg]);
-            if (isregderef(q2)) fprintf(stderr, "q2 ISREG|DEREF (%s)\n", regnames[p->q2.reg]);
-
-            if (!isreg(q1)) fprintf(stderr, "ONLY handliong q1 as reg\n");
-*/
-            // current inst is a COMPARE but since SPAM1 is 8 bit I can't do a single compare of values.
-            // for multibyte values I need to know what kind of BR* instruction that will occur off the back of this COMPARE
-            // so that I can arrange a multibyte algorithm that sets the needed status reg flag.
-            int branchType = findBranch(f, p);
-            emit(f, "\t; BRANCH-TYPE-WILL-BE %s\n", ename[branchType]);
-
-            char *q1Regname = regnames[p->q1.reg];
-            char *q2Regname = regnames[p->q2.reg];
-
-            if (branchType == BEQ || branchType == BNE || branchType == BLT || branchType == BGT) {
-                emit(f, "\tREGA=[:%s+3]\n", q1Regname);
-                emit(f, "\tNOOP = REGA A_MINUS_B_SIGNEDMAG [:%s+3] _S\n", q2Regname);
-                emit(f, "\tREGA=[:%s+2]\n", q1Regname);
-                emit(f, "\tNOOP = REGA A_MINUS_B           [:%s+2] _EQ_S\n", q2Regname);
-                emit(f, "\tREGA=[:%s+1]\n", q1Regname);
-                emit(f, "\tNOOP = REGA A_MINUS_B           [:%s+1] _EQ_S\n", q2Regname);
-                emit(f, "\tREGA=[:%s+0]\n", q1Regname);
-                emit(f, "\tNOOP = REGA A_MINUS_B           [:%s+0] _EQ_S\n", q2Regname);
-                emit(f, "\t; aggregate flags into register\n");
-                emit(f, "\t; NOT NEEDED REGA=0\n");
-                emit(f, "\t; NOT NEEDED REGA = REGA A_OR_B 1 _LT\n");
-                emit(f, "\t; NOT NEEDED REGA = REGA A_OR_B 2 _GT\n");
-                emit(f, "\t; NOT NEEDED REGA = REGA A_OR_B 4 _NE\n");
-                emit(f, "\t; NOT NEEDED REGA = REGA A_OR_B 8 _EQ\n");
-            }
-
-            // if(multiple_ccs) {
-            //     emit(f,"!!! %s,",regnames[zreg]);
-            // }
-            // NOT_USED = A - B
-            //           int isUnsigned =  A_MINIUS_B_SIGNEDMAG
-            /*
-                        if (ISINT(t)) { // should this be ISSCALAR??
-                            int datatypeSize = msizetab[BASETYPE(t)];
-                            int pos = 0;
-                            while (pos < datatypeSize) {
-                                emit(f,"\t[:%s+%d] = ",regnames[r], pos);
-                                emitvalJL(f,&o->val,type, pos);
-                                emit(f,"\t\n");
-                                pos++;
-                            }
-                            continue;
-                        }
-                        */
-            if (ISINT(t)) {  // should this be ISSCALAR??
-                int offset = 0;
-                /*
-                emit(f,"\t<");
-                emitvalJL(f, &p->q1.val, t, 0);
-                if(p->q1.flags&REG)
-                    emit(f,":%s",regnames[p->q1.reg]);
-                emit(f,">\n");
-                emit(f,"\t<");
-                emitvalJL(f, &p->q2.val, t, 0);
-                if(p->q1.flags&REG)
-                    emit(f,":%s",regnames[p->q1.reg]);
-                emit(f,">\n");
-
-                int datatypeSize = msizetab[BASETYPE(t)];
-                while (offset < datatypeSize) {
-                    emit(f, "\tREGA = ");
-                    emit_objJL(f, &p->q1, t, offset);
-                    emit(f, "\n");
-
-                    emit(f, "\tNOOP = REGA - ");
-                    emit_objJL(f, &p->q2, t, offset);
-                    emit(f, "\t\n");
-                    offset++;
-                }
-                */
-                continue;
-            } else {
-                emit(f, "\t;COMPARE NOT INT NOT IMPL\n");
-                emit_obj(f, &p->q1, t);
-                emit(f, ",");
-                emit_obj(f, &p->q2, t);
-                emit(f, "\n");
-                if (multiple_ccs) {
-                    int zreg = zReg(p);
-                    save_result(f, p, zreg);
-                }
-                continue;
-            }
+            gc_compare(f, p);
             continue;
 
         }
@@ -1599,7 +1499,167 @@ void gen_code(FILE *f, struct IC *p, struct Var *v, zmax offset)
         v->fi->flags |= ALL_STACK;
         v->fi->stack1 = stack;
     }
-    emit(f, "# stacksize=%lu%s\n", zum2ul(stack), stack_valid ? "" : "+??");
+    //emit(f, ";JL# stacksize=%lu%s\n", zum2ul(stack), stack_valid ? "" : "+??");
+}
+
+void gc_compare(FILE *f, struct IC *p) {
+    int t = p->typf;
+    emit(f, "; COMPARE START ========\n");
+
+    emit(f, "\t; ORIGINAL ASM: \t");
+    emit(f, "\tcmp.%s\t", dt(t));
+    emit_obj(f, &p->q1, t);
+    emit(f, ",");
+    emit_obj(f, &p->q2, t);
+    emit(f, "\n");
+
+    struct obj *q1 = &p->q1;
+
+    int q1Reg = getReg(&(p->q1));
+    int q2Reg = getReg(&(p->q2));
+
+    // const usually in q2, one source is always non-const
+/*
+fprintf(stderr, "OBJ DUMP: ");
+pric2(stderr, p);
+
+if (p->q1.flags) {
+    fprintf(stderr, " @@q1 ");
+    probj(stderr, &p->q1, 0);
+    fprintf(stderr, "\n");
+}
+if (p->q2.flags) {
+    fprintf(stderr, " @@q2 ");
+    probj(stderr, &p->q2, 0);
+    fprintf(stderr, "\n");
+}
+if (p->z.flags) {
+    fprintf(stderr, " @@z ");
+    probj(stderr, &p->z, 0);
+    fprintf(stderr, "\n");
+}
+
+if (isreg(z)) fprintf(stderr, "z  ISREG (%s)\n", regnames[p->z.reg]);
+if (isreg(q1)) fprintf(stderr, "q1 ISREG (%s)\n", regnames[p->q1.reg]);
+if (isreg(q2)) fprintf(stderr, "q2 ISREG (%s)\n", regnames[p->q2.reg]);
+if (isconst(z)) fprintf(stderr, "z  ISCONST (%s)\n", regnames[p->z.reg]);
+if (isconst(q1)) fprintf(stderr, "q1 ISCONST (%s)\n", regnames[p->q1.reg]);
+if (isconst(q2)) fprintf(stderr, "q2 ISCONST (%s)\n", regnames[p->q2.reg]);
+if (isconstderef(z)) fprintf(stderr, "z  ISCONST|DREFOBJ (%s)\n", regnames[p->z.reg]);
+if (isconstderef(q1)) fprintf(stderr, "q1 ISCONST|DREFOBJ (%s)\n", regnames[p->q1.reg]);
+if (isconstderef(q2)) fprintf(stderr, "q2 ISCONST|DREFOBJ (%s)\n", regnames[p->q2.reg]);
+if (isreg(q2)) fprintf(stderr, "q2 ISREG (%s)\n", regnames[p->q2.reg]);
+if (isvar(q2)) fprintf(stderr, "q2 ISVAR|DREFOBJ (%s)\n", regnames[p->q2.reg]);
+if (isvarreg(q2)) fprintf(stderr, "q2 ISVAR|REG (%s)\n", regnames[p->q2.reg]);
+if (isregderef(q2)) fprintf(stderr, "q2 ISREG|DEREF (%s)\n", regnames[p->q2.reg]);
+
+if (!isreg(q1)) fprintf(stderr, "ONLY handliong q1 as reg\n");
+*/
+    // current inst is a COMPARE but since SPAM1 is 8 bit I can't do a single compare of values.
+// for multibyte values I need to know what kind of BR* instruction that will occur off the back of this COMPARE
+// so that I can arrange a multibyte algorithm that sets the needed status reg flag.
+    int branchType = findBranch(f, p);
+    emit(f, "\t; BRANCH-TYPE-WILL-BE %s\n", ename[branchType]);
+
+    char *q1Regname = regnames[p->q1.reg];
+
+    if (isReg(&p->q2)) {
+        char *q2Regname = regnames[p->q2.reg];
+
+        if (branchType == BEQ || branchType == BNE || branchType == BLT || branchType == BGT) {
+            emit(f, "\t; NOTE ! This is a magnitude comparison NOT a subtraction so we start with the top digit\n");
+            emit(f, "\tREGA=[:%s+3]\n", q1Regname);
+            emit(f, "\tNOOP = REGA A_MINUS_B_SIGNEDMAG [:%s+3] _S\n", q2Regname);
+            emit(f, "\tREGA=[:%s+2]\n", q1Regname);
+            emit(f, "\tNOOP = REGA A_MINUS_B           [:%s+2] _EQ_S\n", q2Regname);
+            emit(f, "\tREGA=[:%s+1]\n", q1Regname);
+            emit(f, "\tNOOP = REGA A_MINUS_B           [:%s+1] _EQ_S\n", q2Regname);
+            emit(f, "\tREGA=[:%s+0]\n", q1Regname);
+            emit(f, "\tNOOP = REGA A_MINUS_B           [:%s+0] _EQ_S\n", q2Regname);
+            emit(f, "\t; aggregate flags into register\n");
+            emit(f, "\t; NOT NEEDED REGA=0\n");
+            emit(f, "\t; NOT NEEDED REGA = REGA A_OR_B 1 _LT\n");
+            emit(f, "\t; NOT NEEDED REGA = REGA A_OR_B 2 _GT\n");
+            emit(f, "\t; NOT NEEDED REGA = REGA A_OR_B 4 _NE\n");
+            emit(f, "\t; NOT NEEDED REGA = REGA A_OR_B 8 _EQ\n");
+        }
+    } else if (isKonst(&p->q2)) {
+
+        if (branchType == BEQ || branchType == BNE || branchType == BLT || branchType == BGT) {
+            emit(f, "\t; NOTE ! This is a magnitude comparison NOT a subtraction so we start with the top digit\n");
+
+            emit(f, "\tREGA=[:%s+3]\n", q1Regname);
+            emit(f, "\tNOOP = REGA A_MINUS_B_SIGNEDMAG $%02x _S\n", BYTE(extractByte(&p->q2.val, q2typ(p), 3)));
+
+            emit(f, "\tREGA=[:%s+2]\n", q1Regname);
+            emit(f, "\tNOOP = REGA A_MINUS_B           $%02x _EQ_S\n", BYTE(extractByte(&p->q2.val, q2typ(p), 2)));
+
+            emit(f, "\tREGA=[:%s+1]\n", q1Regname);
+            emit(f, "\tNOOP = REGA A_MINUS_B           $%02x _EQ_S\n", BYTE(extractByte(&p->q2.val, q2typ(p), 1)));
+
+            emit(f, "\tREGA=[:%s+0]\n", q1Regname);
+            emit(f, "\tNOOP = REGA A_MINUS_B           $%02x _EQ_S\n", BYTE(extractByte(&p->q2.val, q2typ(p), 0)));
+        }
+    } else {
+        fprintf(stderr, "COMPARE NOT SUPPORTED\n");
+        ierror(1);
+    }
+
+    // if(multiple_ccs) {
+//     emit(f,"!!! %s,",regnames[zreg]);
+// }
+// NOT_USED = A - B
+//           int isUnsigned =  A_MINIUS_B_SIGNEDMAG
+/*
+            if (ISINT(t)) { // should this be ISSCALAR??
+                int datatypeSize = msizetab[BASETYPE(t)];
+                int pos = 0;
+                while (pos < datatypeSize) {
+                    emit(f,"\t[:%s+%d] = ",regnames[r], pos);
+                    emitvalJL(f,&o->val,type, pos);
+                    emit(f,"\t\n");
+                    pos++;
+                }
+                continue;
+            }
+            */
+    if (ISINT(t)) {  // should this be ISSCALAR??
+        int offset = 0;
+        /*
+        emit(f,"\t<");
+        emitvalJL(f, &p->q1.val, t, 0);
+        if(p->q1.flags&REG)
+            emit(f,":%s",regnames[p->q1.reg]);
+        emit(f,">\n");
+        emit(f,"\t<");
+        emitvalJL(f, &p->q2.val, t, 0);
+        if(p->q1.flags&REG)
+            emit(f,":%s",regnames[p->q1.reg]);
+        emit(f,">\n");
+
+        int datatypeSize = msizetab[BASETYPE(t)];
+        while (offset < datatypeSize) {
+            emit(f, "\tREGA = ");
+            emit_objJL(f, &p->q1, t, offset);
+            emit(f, "\n");
+
+            emit(f, "\tNOOP = REGA - ");
+            emit_objJL(f, &p->q2, t, offset);
+            emit(f, "\t\n");
+            offset++;
+        }
+        */
+    } else {
+        emit(f, "\t;COMPARE NOT INT NOT IMPL\n");
+        emit_obj(f, &p->q1, t);
+        emit(f, ",");
+        emit_obj(f, &p->q2, t);
+        emit(f, "\n");
+        if (multiple_ccs) {
+            int zreg = zReg(p);
+            save_result(f, p, zreg);
+        }
+    }
 }
 
 void gc_allocreg(FILE *f, struct IC *p) {
@@ -1670,16 +1730,16 @@ void gc_branch_conditional(FILE *f, struct IC *p) {
         flag = "_GT";
 
     if (flag != 0) {
-        emit(f, "\tPCHI = <:%s%d\n", labprefix, t);
-        emit(f, "\tPCLO = >:%s%d %s\n", labprefix, t, flag);
+        emit(f, "\tPCHITMP = <:%s%d\n", labprefix, t);
+        emit(f, "\tPCLO    = >:%s%d %s\n", labprefix, t, flag);
     } else if (c == BGE) {
-        emit(f, "\tPCHI = <:%s%d\n", labprefix, t);
-        emit(f, "\tPCLO = >:%s%d _GT\n", labprefix, t);
-        emit(f, "\tPCLO = >:%s%d _EQ\n", labprefix, t);
+        emit(f, "\tPCHITMP = <:%s%d\n", labprefix, t);
+        emit(f, "\tPCLO    = >:%s%d _GT\n", labprefix, t);
+        emit(f, "\tPCLO    = >:%s%d _EQ\n", labprefix, t);
     } else if (c == BLE) {
-        emit(f, "\tPCHI = <:%s%d\n", labprefix, t);
-        emit(f, "\tPCLO = >:%s%d _LT\n", labprefix, t);
-        emit(f, "\tPCLO = >:%s%d _EQ\n", labprefix, t);
+        emit(f, "\tPCHITMP = <:%s%d\n", labprefix, t);
+        emit(f, "\tPCLO    = >:%s%d _LT\n", labprefix, t);
+        emit(f, "\tPCLO    = >:%s%d _EQ\n", labprefix, t);
     } else {
         printf("ILLEGAL BRANCH COMMAND %d\n", c);
         ierror(0);
@@ -1779,6 +1839,12 @@ void gc_arithmetic(FILE *f, struct IC *p) {
     int c = p->code;
     int t = p->typf;
 
+    emit(f, "; ARITHMETIC : %s %s = %s - ", ename[c], regnames[p->z.reg], regnames[p->q1.reg]);
+    emit_obj(f, &p->q2, t);
+    emit(f, "\n");
+
+    int targSize = msizetab[ztyp(p)];
+
     // Subtract a pointer from a pointer. q1,q2->z.
     // q1 and q2 are pointers (of type typf2) and z is an integer of type typf. z has
     // to be q1 - q2 in bytes.
@@ -1796,44 +1862,78 @@ void gc_arithmetic(FILE *f, struct IC *p) {
     if (c == SUBIFP) c = SUB;
 
     if (c == ADD || c == ADDI2P) {
-        // FIXME USE SRC LEN TO OPTIMISE THIS !!!!
-        emit(f, "; ADD %s = %s - ", regnames[p->z.reg], regnames[p->q1.reg]);
-        emit_obj(f, &p->q2, t);
-        emit(f, "\n");
 
-        int targSize = msizetab[ztyp(p)];
-        int constSize = msizetab[q2typ(p)];
-        if (constSize > targSize) {
-            //if (constSize > targSize) {
-            fprintf(stderr, "FIXME - CONST SIZE %d NOT SAME AS TARGET SIZE %d\n", constSize, targSize);
-            //fprintf(stderr, "FIXME - SOURCE DATA SIZE %d WILL NOT FIT IN TARGET SIZE %d\n", constSize, targSize);
+        if (isKonst(&p->q2)) {
+            int constSize = msizetab[q2typ(p)];
+            if (constSize != targSize) {
+                fprintf(stderr, "FIXME - CONST SIZE %d NOT SAME AS TARGET SIZE %d\n", constSize, targSize);
+                ierror(1);
+            }
+
+            emit(f, "\t; clear flags\n");
+            emit(f, "\tREGA = 0 _S\n");
+            int pos = 0;
+            emit(f, "\t; sum reg and konst\n");
+            while (pos < constSize) {
+                // can I avoid the sign extend stuff by preparing the extractByte properly to do extensions?
+
+                emit(f, "\tREGA = [:%s+%d]\n", regnames[p->q1.reg], pos);
+                int konstByte = BYTE(extractByte(&p->q2.val, q2typ(p), pos));
+                emit(f, "\t[:%s+%d] = REGA A_PLUS_B_PLUS_C $%02x _S\n", regnames[p->z.reg], pos, konstByte);
+                pos++;
+            }
+
+            /*
+            int isSigned = c==ADD && ISSIGNED(p->z.flags); // add needs sign extension but not addi2p
+            while(pos < targSize) {
+                emit(f, "[:%s+%d] = 0; padding\n", regnames[p->z.reg]);
+
+                if (isSigned) {
+                    // extend sign left if this is signed negative value.
+                    // last byte copied used the _S flag so the status register knows if it was negative.
+                    // so optionally set it to FF if the NEG (_N) flag is set.
+                    emit(f, "\t[:%s+%d] = $ff _N ; padding NEG as top bit of was a 1\n", regnames[p->z.reg], pos);
+                }
+            }
+             */
+        } if (isReg(&p->q2)) {
+
+            int srcSize = msizetab[q2typ(p)];
+            if (srcSize != targSize) {
+                fprintf(stderr, "FIXME - SRC REG SIZE %d NOT SAME AS TARGET SIZE %d\n", srcSize, targSize);
+                ierror(1);
+            }
+
+            emit(f, "\t; clear flags\n");
+            emit(f, "\tREGA = 0 _S\n");
+            int pos = 0;
+            emit(f, "\t; sum reg and reg\n");
+            while (pos < srcSize) {
+                // can I avoid the sign extend stuff by preparing the extractByte properly to do extensions?
+
+                emit(f, "\tREGA = [:%s+%d]\n", regnames[p->q1.reg], pos);
+                emit(f, "\tREGB = [:%s+%d]\n", regnames[p->q2.reg], pos);
+                emit(f, "\t[:%s+%d] = REGA A_PLUS_B_PLUS_C REGB _S\n", regnames[p->z.reg], pos);
+                pos++;
+            }
+
+            /*
+            int isSigned = c==ADD && ISSIGNED(p->z.flags); // add needs sign extension but not addi2p
+            while(pos < targSize) {
+                emit(f, "[:%s+%d] = 0; padding\n", regnames[p->z.reg]);
+
+                if (isSigned) {
+                    // extend sign left if this is signed negative value.
+                    // last byte copied used the _S flag so the status register knows if it was negative.
+                    // so optionally set it to FF if the NEG (_N) flag is set.
+                    emit(f, "\t[:%s+%d] = $ff _N ; padding NEG as top bit of was a 1\n", regnames[p->z.reg], pos);
+                }
+            }
+             */
+        } else {
+            fprintf(stderr, "!!!!! arith src %d not supported\n", p->q2.flags);
             ierror(1);
         }
-
-        emit(f, "\tREGA = 0 _S ; clear flags\n");
-        int pos = 0;
-        while (pos < constSize) {
-            // can I avoid the sign extend stuff by preparing the extractByte properly to do extensions?
-
-            emit(f, "\tREGA = [:%s+%d]\n", regnames[p->q1.reg], pos);
-            int konstByte = BYTE(extractByte(&p->q2.val, q2typ(p), pos));
-            emit(f, "\t[:%s+%d] = REGA A_PLUS_B_PLUS_C $%02x _S\n", regnames[p->z.reg], pos, konstByte);
-            pos++;
-        }
-
-        /*
-        int isSigned = c==ADD && ISSIGNED(p->z.flags); // add needs sign extension but not addi2p
-        while(pos < targSize) {
-            emit(f, "[:%s+%d] = 0; padding\n", regnames[p->z.reg]);
-
-            if (isSigned) {
-                // extend sign left if this is signed negative value.
-                // last byte copied used the _S flag so the status register knows if it was negative.
-                // so optionally set it to FF if the NEG (_N) flag is set.
-                emit(f, "\t[:%s+%d] = $ff _N ; padding NEG as top bit of was a 1\n", regnames[p->z.reg], pos);
-            }
-        }
-         */
 
         return;
     }
@@ -1861,8 +1961,8 @@ void gc_arithmetic(FILE *f, struct IC *p) {
 void gc_bra(FILE *f, struct IC *p) {
     int t = p->typf;
     emit(f, "; BRA %s%d\n", labprefix, t);
-    emit(f, "\tPCHI = <:%s%d\n", labprefix, t);
-    emit(f, "\tPCLO = >:%s%d\n", labprefix, t);
+    emit(f, "\tPCHITMP = <:%s%d\n", labprefix, t);
+    emit(f, "\tPCLO    = >:%s%d\n", labprefix, t);
 }
 
 /*
@@ -1909,6 +2009,8 @@ void gc_convert(FILE *f, struct IC *p) {
 void gc_call(FILE *f, struct IC *p) {
     int t = p->typf;
 
+    int bytesToRollback = pushedargsize(p);
+
     int reg;
     if ((p->q1.flags & (VAR | DREFOBJ)) == VAR && p->q1.v->fi && p->q1.v->fi->inline_asm) {
         char* inlineAsm = p->q1.v->fi->inline_asm;
@@ -1924,23 +2026,36 @@ void gc_call(FILE *f, struct IC *p) {
         emit(f, "\n");
         pushed -= zm2l(p->q2.val.vmax);
 
-        emit(f, "\tMARLO = MARLO - 1 _S\n");
+        emit(f, "\t; vbcc assume 4 bytes of address pushed\n");
+        emit(f, "\t; skip 2 return bytes\n");
+        emit(f, "\tMARLO = MARLO - 2 _S\n");
         emit(f, "\tMARHI = MARHI A_MINUS_B_MINUS_C 0\n");
-        emit(f, "\tRAM = (<:%s)\n", returnLabel);
+        emit(f, "\t; push return lo\n");
         emit(f, "\tMARLO = MARLO - 1 _S\n");
         emit(f, "\tMARHI = MARHI A_MINUS_B_MINUS_C 0\n");
         emit(f, "\tRAM = (>:%s)\n", returnLabel);
+        emit(f, "\t; push return hi\n");
+        emit(f, "\tMARLO = MARLO - 1 _S\n");
+        emit(f, "\tMARHI = MARHI A_MINUS_B_MINUS_C 0\n");
+        emit(f, "\tRAM = (<:%s)\n", returnLabel);
 
         char *id = p->q1.v->identifier;
         if (id == NULL) {
             fprintf(stderr, "\nNo subroutine identifier\n");
             ierror(1);
         }
-        emit(f, "\tPCHITMP = (>:%s%s)\n", idprefix, id);
-        emit(f, "\tPC      = (<:%s%s)\n", idprefix, id);
+
+        emit(f, "\t; call %s\n", id);
+        emit(f, "\tPCHITMP = (<:%s%s)\n", idprefix, id);
+        emit(f, "\tPC      = (>:%s%s)\n", idprefix, id);
 
         emit(f, "\t; return location %s\n", returnLabel);
         emit(f, "%s:\n", returnLabel);
+
+        emit(f, "\t; rewinding pushed args %d\n", bytesToRollback);
+        emit(f, "\tMARLO = MARLO + %d _S\n", bytesToRollback);
+        emit(f, "\tMARHI = MARHI A_PLUS_B_PLUS_C 0\n");
+        emit(f, "\t; call unwound and complete\n", bytesToRollback);
 
 //        TODO - unwind any pushed args to the function just returned from
  //           IE the size in PRIC2:  call function M0+_sub(sub) size=24 => sub
@@ -2023,18 +2138,18 @@ int handle_pragma(const char *s) {
 
 void cleanup_cg(FILE *f) {
     // write all the registers at the bottom of the asm
+    emit(f, "; registers\n");
+    // don't include the "noreg" as we don't want it used
     for (int i = 0; i <= MAXR; i++) {
-        emit(f, "\t%-6s:\tBYTES [0", regnames[i]);
-        int rs = regsize[i];
-        for (int i=1; i<rs; i++) {
-            emit(f, ",0");
+        if (i != R_NONE) {
+            emit(f, "\t%-10s:\tRESERVE %d\n", regnames[i] , regsize[i]);
         }
-        emit(f, "]\n", regnames[i]);
     }
+    emit(f, "END\n");
 }
 
 void cleanup_db(FILE *f) {
-    if (f) section = -1;
+    //if (f) section = -1;
 }
 
 void dumpObj(FILE *f, char *label, struct obj *o, int otyp, struct IC *p) {

@@ -1,32 +1,1163 @@
-SECTION .TEXT
-MAIN:
-  PUSH  EBP
-  MOV EBP, ESP
-  CALL  FOO
-  NOP
-  POP EBP
-  RET
-  MOV EAX, DWORD PTR [ESP]
-  RET
-BAR:
-  PUSH  EBP
-  MOV EBP, ESP
-  SUB ESP, 16
-  MOV EDX, DWORD PTR 8[EBP]
-  MOV EAX, DWORD PTR 12[EBP]
-  ADD EAX, EDX
-  MOV DWORD PTR -4[EBP], EAX
-  NOP
-  LEAVE
-  RET
-FOO:
-  PUSH  EBP
-  MOV EBP, ESP
-  PUSH  222
-  PUSH  111
-  CALL  BAR
-  ADD ESP, 8
-  NOP
-  LEAVE
-  RET
 
+
+
+
+gen_code() frame=14
+ASM: 	.text
+ASM: 	.global	_main
+ASM: _main:
+ASM: MARLO=0
+ASM: MARHI=0
+ASM: [:sp]=$ff
+ASM: [:sp+1]=$ff
+
+===================================================================  allocreg (65)
+ASM: ; ALLOCREG - gpr9
+
+===================================================================  allocreg (65)
+ASM: ; ALLOCREG - gpr8
+
+===================================================================  allocreg (65)
+ASM: ; ALLOCREG - gpr7
+
+===================================================================  allocreg (65)
+ASM: ; ALLOCREG - gpr6
+
+===================================================================  move (2)
+	DUMP code = move    typf=s  typf2=??   ztyp=s  q1typ=s  q2typ=s
+	DUMP z  < REG(gpr8) VAR( storage:auto:0(sp) ) > 'myShort' 
+	DUMP q1 < KONST:-16721 >
+	DUMP q2 < FLAG:0  >
+PRIC2...
+	move short #S-16721->gpr8(myShort) size=2
+-----
+ASM: ; ASSIGN type:s srcreg:noreg -> destreg:gpr8
+;JL - load_reg gpr8 with value of type s
+ASM: ; load_reg targ reg size:4    src data size:2
+ASM: 	;load from konst
+ASM: 	[:gpr8+0] = $af	
+ASM: 	[:gpr8+1] = $be	
+ASM: 	[:gpr8+2] = $ff ; padding
+ASM: 	[:gpr8+3] = $ff ; padding
+
+===================================================================  move (2)
+	DUMP code = move    typf=l  typf2=??   ztyp=l  q1typ=l  q2typ=l
+	DUMP z  < REG(gpr6) VAR( storage:auto:2(sp) ) > 'myLong' 
+	DUMP q1 < KONST:65278 >
+	DUMP q2 < FLAG:0  >
+PRIC2...
+	move long #L65278->gpr6(myLong) size=4
+-----
+ASM: ; ASSIGN type:l srcreg:noreg -> destreg:gpr6
+;JL - load_reg gpr6 with value of type l
+ASM: ; load_reg targ reg size:4    src data size:4
+ASM: 	;load from konst
+ASM: 	[:gpr6+0] = $fe	
+ASM: 	[:gpr6+1] = $fe	
+ASM: 	[:gpr6+2] = $00	
+ASM: 	[:gpr6+3] = $00	
+
+===================================================================  move (2)
+	DUMP code = move    typf=uc  typf2=??   ztyp=uc  q1typ=uc  q2typ=uc
+	DUMP z  < REG(gpr7) DREFOBJ VAR( storage:auto:6(sp) ) > 'myStruct' 
+	DUMP q1 < KONST:161 >
+	DUMP q2 < FLAG:0  >
+PRIC2...
+	move unsigned char #UC161->([pointer]gpr7(myStruct)) size=1
+-----
+ASM: ; ASSIGN type:uc srcreg:noreg -> destreg:gpr7
+;JL - load_reg gpr7 with value of type uc
+ASM: ; load_reg targ reg size:4    src data size:1
+ASM: 	;load from konst
+ASM: 	[:gpr7+0] = $a1	
+ASM: 	[:gpr7+1] = $00 ; padding
+ASM: 	[:gpr7+2] = $00 ; padding
+ASM: 	[:gpr7+3] = $00 ; padding
+
+===================================================================  allocreg (65)
+ASM: ; ALLOCREG - gpr0
+
+===================================================================  add-int-to-pointer (81)
+	DUMP code = add-int-to-pointer    typf=i  typf2=p   ztyp=p  q1typ=p  q2typ=i
+	DUMP z  < REG(gpr0) >
+	DUMP q1 < REG(gpr7) VAR( storage:auto:6(sp) ) > 'myStruct' 
+	DUMP q2 < KONST:1 >
+PRIC2...
+	add-int-to-pointer int gpr7(myStruct),#I1->gpr0[S] ptype=pointer
+-----
+ASM: 	; ADD gpr0 = gpr7 - 1
+ASM: REGA = 0 _S ; clear flags
+ASM: REGA = [:gpr7+0]
+ASM: [:gpr0+0] = REGA A_PLUS_B_PLUS_C $01 _S
+ASM: REGA = [:gpr7+1]
+ASM: [:gpr0+1] = REGA A_PLUS_B_PLUS_C $00 _S
+ASM: REGA = [:gpr7+2]
+ASM: [:gpr0+2] = REGA A_PLUS_B_PLUS_C $00 _S
+ASM: REGA = [:gpr7+3]
+ASM: [:gpr0+3] = REGA A_PLUS_B_PLUS_C $00 _S
+
+===================================================================  move (2)
+	DUMP code = move    typf=l  typf2=??   ztyp=l  q1typ=l  q2typ=l
+	DUMP z  < REG(gpr0) DREFOBJ >
+	DUMP q1 < KONST:178 >
+	DUMP q2 < FLAG:0  >
+PRIC2...
+	move long #L178->([pointer]gpr0[S]) size=4
+-----
+ASM: ; ASSIGN type:l srcreg:noreg -> destreg:gpr0
+;JL - load_reg gpr0 with value of type l
+ASM: ; load_reg targ reg size:4    src data size:4
+ASM: 	;load from konst
+ASM: 	[:gpr0+0] = $b2	
+ASM: 	[:gpr0+1] = $00	
+ASM: 	[:gpr0+2] = $00	
+ASM: 	[:gpr0+3] = $00	
+
+===================================================================  freereg (66)
+ASM: ; FREEREG - gpr0
+
+===================================================================  compare (77)
+	DUMP code = compare    typf=l  typf2=??   ztyp=l  q1typ=l  q2typ=l
+	DUMP z  < FLAG:0  >
+	DUMP q1 < REG(gpr6) VAR( storage:auto:2(sp) ) > 'myLong' 
+	DUMP q2 < REG(gpr6) VAR( storage:auto:2(sp) ) > 'myLong' 
+PRIC2...
+	compare long gpr6(myLong),gpr6(myLong)
+-----
+ASM: ; COMPARE START ========
+ASM: 	; ORIGINAL ASM: 		cmp.l	gpr6,gpr6
+ASM: 	; BRANCH-TYPE-WILL-BE bne
+ASM: 	REGA=[:gpr6+3]
+ASM: 	NOOP = REGA A_MINUS_B_SIGNEDMAG [:gpr6+3] _S
+ASM: 	REGA=[:gpr6+2]
+ASM: 	NOOP = REGA A_MINUS_B           [:gpr6+2] _EQ_S
+ASM: 	REGA=[:gpr6+1]
+ASM: 	NOOP = REGA A_MINUS_B           [:gpr6+1] _EQ_S
+ASM: 	REGA=[:gpr6+0]
+ASM: 	NOOP = REGA A_MINUS_B           [:gpr6+0] _EQ_S
+ASM: 	; aggregate flags into register
+ASM: 	; NOT NEEDED REGA=0
+ASM: 	; NOT NEEDED REGA = REGA A_OR_B 1 _LT
+ASM: 	; NOT NEEDED REGA = REGA A_OR_B 2 _GT
+ASM: 	; NOT NEEDED REGA = REGA A_OR_B 4 _NE
+ASM: 	; NOT NEEDED REGA = REGA A_OR_B 8 _EQ
+
+===================================================================  bne (71)
+	DUMP code = bne    typf=l  typf2=??   ztyp=l  q1typ=l  q2typ=l
+	DUMP z  < FLAG:0  >
+	DUMP q1 < FLAG:0  >
+	DUMP q2 < FLAG:0  >
+PRIC2...
+	bne L4
+-----
+ASM: ; BRANCH BLOCK ne
+ASM: 	PCHI = <:l4
+ASM: 	PCLO = >:l4 _NE
+ASM: ; BRANCH TO LABEL l4
+
+===================================================================  label (69)
+	DUMP code = label    typf=i  typf2=??   ztyp=i  q1typ=i  q2typ=i
+	DUMP z  < FLAG:0  >
+	DUMP q1 < FLAG:0  >
+	DUMP q2 < FLAG:0  >
+PRIC2...
+L3
+-----
+ASM: l3:
+
+===================================================================  move (2)
+	DUMP code = move    typf=l  typf2=??   ztyp=l  q1typ=l  q2typ=l
+	DUMP z  < REG(gpr6) VAR( storage:auto:2(sp) ) > 'myLong' 
+	DUMP q1 < KONST:170 >
+	DUMP q2 < FLAG:0  >
+PRIC2...
+	move long #L170->gpr6(myLong) size=4
+-----
+ASM: ; ASSIGN type:l srcreg:noreg -> destreg:gpr6
+;JL - load_reg gpr6 with value of type l
+ASM: ; load_reg targ reg size:4    src data size:4
+ASM: 	;load from konst
+ASM: 	[:gpr6+0] = $aa	
+ASM: 	[:gpr6+1] = $00	
+ASM: 	[:gpr6+2] = $00	
+ASM: 	[:gpr6+3] = $00	
+
+===================================================================  bra (76)
+	DUMP code = bra    typf=ll  typf2=??   ztyp=ll  q1typ=ll  q2typ=ll
+	DUMP z  < FLAG:0  >
+	DUMP q1 < FLAG:0  >
+	DUMP q2 < FLAG:0  >
+PRIC2...
+	bra L5
+-----
+ASM: 	PCHI = <:l5
+ASM: 	PCLO = >:l5
+
+===================================================================  label (69)
+	DUMP code = label    typf=l  typf2=??   ztyp=l  q1typ=l  q2typ=l
+	DUMP z  < FLAG:0  >
+	DUMP q1 < FLAG:0  >
+	DUMP q2 < FLAG:0  >
+PRIC2...
+L4
+-----
+ASM: l4:
+
+===================================================================  allocreg (65)
+ASM: ; ALLOCREG - gpr0
+
+===================================================================  add (27)
+	DUMP code = add    typf=l  typf2=??   ztyp=l  q1typ=l  q2typ=l
+	DUMP z  < REG(gpr6) VAR( storage:auto:2(sp) ) > 'myLong' 
+	DUMP q1 < REG(gpr6) VAR( storage:auto:2(sp) ) > 'myLong' 
+	DUMP q2 < KONST:187 >
+PRIC2...
+	add long gpr6(myLong),#L187->gpr6(myLong)
+-----
+ASM: 	; ADD gpr6 = gpr6 - 187
+ASM: REGA = 0 _S ; clear flags
+ASM: REGA = [:gpr6+0]
+ASM: [:gpr6+0] = REGA A_PLUS_B_PLUS_C $bb _S
+ASM: REGA = [:gpr6+1]
+ASM: [:gpr6+1] = REGA A_PLUS_B_PLUS_C $00 _S
+ASM: REGA = [:gpr6+2]
+ASM: [:gpr6+2] = REGA A_PLUS_B_PLUS_C $00 _S
+ASM: REGA = [:gpr6+3]
+ASM: [:gpr6+3] = REGA A_PLUS_B_PLUS_C $00 _S
+
+===================================================================  freereg (66)
+ASM: ; FREEREG - gpr0
+
+===================================================================  label (69)
+	DUMP code = label    typf=ll  typf2=??   ztyp=ll  q1typ=ll  q2typ=ll
+	DUMP z  < FLAG:0  >
+	DUMP q1 < FLAG:0  >
+	DUMP q2 < FLAG:0  >
+PRIC2...
+L5
+-----
+ASM: l5:
+
+===================================================================  push (78)
+	DUMP code = push    typf=i  typf2=??   ztyp=i  q1typ=i  q2typ=i
+	DUMP z  < FLAG:0  >
+	DUMP q1 < KONST:11 >
+	DUMP q2 < FLAG:0  >
+PRIC2...
+	push int #I11 size=4
+-----
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = $00
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = $00
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = $00
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = $0b
+
+===================================================================  push (78)
+	DUMP code = push    typf=i  typf2=??   ztyp=i  q1typ=i  q2typ=i
+	DUMP z  < FLAG:0  >
+	DUMP q1 < KONST:22 >
+	DUMP q2 < FLAG:0  >
+PRIC2...
+	push int #I22 size=4
+-----
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = $00
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = $00
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = $00
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = $16
+
+===================================================================  push (78)
+	DUMP code = push    typf=i  typf2=??   ztyp=i  q1typ=i  q2typ=i
+	DUMP z  < FLAG:0  >
+	DUMP q1 < KONST:33 >
+	DUMP q2 < FLAG:0  >
+PRIC2...
+	push int #I33 size=4
+-----
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = $00
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = $00
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = $00
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = $21
+
+===================================================================  push (78)
+	DUMP code = push    typf=i  typf2=??   ztyp=i  q1typ=i  q2typ=i
+	DUMP z  < FLAG:0  >
+	DUMP q1 < KONST:44 >
+	DUMP q2 < FLAG:0  >
+PRIC2...
+	push int #I44 size=4
+-----
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = $00
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = $00
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = $00
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = $2c
+
+===================================================================  push (78)
+	DUMP code = push    typf=i  typf2=??   ztyp=i  q1typ=i  q2typ=i
+	DUMP z  < FLAG:0  >
+	DUMP q1 < KONST:55 >
+	DUMP q2 < FLAG:0  >
+PRIC2...
+	push int #I55 size=4
+-----
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = $00
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = $00
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = $00
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = $37
+
+===================================================================  push (78)
+	DUMP code = push    typf=i  typf2=??   ztyp=i  q1typ=i  q2typ=i
+	DUMP z  < FLAG:0  >
+	DUMP q1 < KONST:66 >
+	DUMP q2 < FLAG:0  >
+PRIC2...
+	push int #I66 size=4
+-----
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = $00
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = $00
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = $00
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = $42
+
+===================================================================  call (42)
+	DUMP code = call    typf=(null)  typf2=??   ztyp=(null)  q1typ=(null)  q2typ=(null)
+	DUMP z  < FLAG:0  >
+	DUMP q1 < VAR( storage:extern:l93993033213296 ) > 'sub' 
+	DUMP q2 < FLAG:0  >
+PRIC2...
+	call function M0+_sub(sub) size=24 => sub
+-----
+ASM: ; CALL
+ASM: 	; call	_sub
+
+===================================================================  allocreg (65)
+ASM: ; ALLOCREG - gpr0
+
+===================================================================  get-return (93)
+	DUMP code = get-return    typf=i  typf2=??   ztyp=i  q1typ=i  q2typ=i
+	DUMP z  < REG(gpr9) VAR( storage:auto:10(sp) ) > 'o' 
+	DUMP q1 < FLAG:0  >
+	DUMP q2 < FLAG:0  >
+PRIC2...
+	get-return int ->gpr9(o)
+-----
+ASM: ; GETRETURN
+ASM: ; memCopy : move 4 bytes  gpr9 <- gpr0  
+ASM: 	REGA = [:gpr0+0]
+ASM: 	[:gpr9+0] = REGA
+ASM: 	REGA = [:gpr0+1]
+ASM: 	[:gpr9+1] = REGA
+ASM: 	REGA = [:gpr0+2]
+ASM: 	[:gpr9+2] = REGA
+ASM: 	REGA = [:gpr0+3]
+ASM: 	[:gpr9+3] = REGA
+
+===================================================================  freereg (66)
+ASM: ; FREEREG - gpr0
+
+===================================================================  set-return (94)
+	DUMP code = set-return    typf=i  typf2=??   ztyp=i  q1typ=i  q2typ=i
+	DUMP z  < FLAG:0  >
+	DUMP q1 < REG(gpr6) VAR( storage:auto:2(sp) ) > 'myLong' 
+	DUMP q2 < FLAG:0  >
+PRIC2...
+	set-return int gpr6(myLong)
+-----
+ASM: ; SETRETURN - zreg = gpr0
+;JL - load_reg gpr0 with value of type i
+ASM: ; load_reg targ reg size:4    src data size:4
+ASM: 	;load from reg
+ASM: ; memCopy : move 4 bytes  gpr0 <- gpr6  
+ASM: 	REGA = [:gpr6+0]
+ASM: 	[:gpr0+0] = REGA
+ASM: 	REGA = [:gpr6+1]
+ASM: 	[:gpr0+1] = REGA
+ASM: 	REGA = [:gpr6+2]
+ASM: 	[:gpr0+2] = REGA
+ASM: 	REGA = [:gpr6+3]
+ASM: 	[:gpr0+3] = REGA
+
+===================================================================  label (69)
+	DUMP code = label    typf=c  typf2=??   ztyp=c  q1typ=c  q2typ=c
+	DUMP z  < FLAG:0  >
+	DUMP q1 < FLAG:0  >
+	DUMP q2 < FLAG:0  >
+PRIC2...
+L1
+-----
+ASM: l1:
+ASM: # stacksize=0+??
+
+
+gen_code() frame=12
+ASM: 	.global	_sub
+ASM: _sub:
+
+===================================================================  allocreg (65)
+ASM: ; ALLOCREG - gpr14
+
+===================================================================  allocreg (65)
+ASM: ; ALLOCREG - gpr13
+
+===================================================================  move (2)
+	DUMP code = move    typf=i  typf2=??   ztyp=i  q1typ=i  q2typ=i
+	DUMP z  < REG(gpr13) >
+	DUMP q1 < VAR( storage:auto:36(sp) ) > 'subParamF' 
+	DUMP q2 < FLAG:0  >
+PRIC2...
+	move int M0+-28(FP)(subParamF)->gpr13 size=4
+-----
+ASM: ; ASSIGN type:i srcreg:noreg -> destreg:gpr13
+;JL - load_reg gpr13 with value of type i
+ASM: ; load_reg targ reg size:4    src data size:4
+ASM: 	;load from var
+ASM: [:SP_STASH]   = MARLO
+ASM: [:SP_STASH+1] = MARHI
+ASM: ; adjust SP by 36
+ASM: MARLO = MARLO + (> 36) ; add lo byte of offset
+ASM: MARHI = MARHI A_PLUS_B_PLUS_C (< $d) ; add hi byte of offset plus any carry
+ASM: ; copy 4 bytes
+ASM: 	[:gpr13+3] = RAM
+ASM: MARLO = MARLO + 1 _S
+ASM: MARHI = MARHI A_PLUS_B_PLUS_C 0	[:gpr13+2] = RAM
+ASM: MARLO = MARLO + 1 _S
+ASM: MARHI = MARHI A_PLUS_B_PLUS_C 0	[:gpr13+1] = RAM
+ASM: MARLO = MARLO + 1 _S
+ASM: MARHI = MARHI A_PLUS_B_PLUS_C 0	[:gpr13+0] = RAM
+ASM: MARLO = MARLO + 1 _S
+ASM: MARHI = MARHI A_PLUS_B_PLUS_C 0
+ASM: MARLO = [:SP_STASH]
+ASM: MARHI = [:SP_STASH+1]
+
+===================================================================  allocreg (65)
+ASM: ; ALLOCREG - gpr12
+
+===================================================================  move (2)
+	DUMP code = move    typf=i  typf2=??   ztyp=i  q1typ=i  q2typ=i
+	DUMP z  < REG(gpr12) >
+	DUMP q1 < VAR( storage:auto:32(sp) ) > 'subParamE' 
+	DUMP q2 < FLAG:0  >
+PRIC2...
+	move int M0+-24(FP)(subParamE)->gpr12 size=4
+-----
+ASM: ; ASSIGN type:i srcreg:noreg -> destreg:gpr12
+;JL - load_reg gpr12 with value of type i
+ASM: ; load_reg targ reg size:4    src data size:4
+ASM: 	;load from var
+ASM: [:SP_STASH]   = MARLO
+ASM: [:SP_STASH+1] = MARHI
+ASM: ; adjust SP by 32
+ASM: MARLO = MARLO + (> 32) ; add lo byte of offset
+ASM: MARHI = MARHI A_PLUS_B_PLUS_C (< $d) ; add hi byte of offset plus any carry
+ASM: ; copy 4 bytes
+ASM: 	[:gpr12+3] = RAM
+ASM: MARLO = MARLO + 1 _S
+ASM: MARHI = MARHI A_PLUS_B_PLUS_C 0	[:gpr12+2] = RAM
+ASM: MARLO = MARLO + 1 _S
+ASM: MARHI = MARHI A_PLUS_B_PLUS_C 0	[:gpr12+1] = RAM
+ASM: MARLO = MARLO + 1 _S
+ASM: MARHI = MARHI A_PLUS_B_PLUS_C 0	[:gpr12+0] = RAM
+ASM: MARLO = MARLO + 1 _S
+ASM: MARHI = MARHI A_PLUS_B_PLUS_C 0
+ASM: MARLO = [:SP_STASH]
+ASM: MARHI = [:SP_STASH+1]
+
+===================================================================  allocreg (65)
+ASM: ; ALLOCREG - gpr11
+
+===================================================================  move (2)
+	DUMP code = move    typf=i  typf2=??   ztyp=i  q1typ=i  q2typ=i
+	DUMP z  < REG(gpr11) >
+	DUMP q1 < VAR( storage:auto:28(sp) ) > 'subParamD' 
+	DUMP q2 < FLAG:0  >
+PRIC2...
+	move int M0+-20(FP)(subParamD)->gpr11 size=4
+-----
+ASM: ; ASSIGN type:i srcreg:noreg -> destreg:gpr11
+;JL - load_reg gpr11 with value of type i
+ASM: ; load_reg targ reg size:4    src data size:4
+ASM: 	;load from var
+ASM: [:SP_STASH]   = MARLO
+ASM: [:SP_STASH+1] = MARHI
+ASM: ; adjust SP by 28
+ASM: MARLO = MARLO + (> 28) ; add lo byte of offset
+ASM: MARHI = MARHI A_PLUS_B_PLUS_C (< $d) ; add hi byte of offset plus any carry
+ASM: ; copy 4 bytes
+ASM: 	[:gpr11+3] = RAM
+ASM: MARLO = MARLO + 1 _S
+ASM: MARHI = MARHI A_PLUS_B_PLUS_C 0	[:gpr11+2] = RAM
+ASM: MARLO = MARLO + 1 _S
+ASM: MARHI = MARHI A_PLUS_B_PLUS_C 0	[:gpr11+1] = RAM
+ASM: MARLO = MARLO + 1 _S
+ASM: MARHI = MARHI A_PLUS_B_PLUS_C 0	[:gpr11+0] = RAM
+ASM: MARLO = MARLO + 1 _S
+ASM: MARHI = MARHI A_PLUS_B_PLUS_C 0
+ASM: MARLO = [:SP_STASH]
+ASM: MARHI = [:SP_STASH+1]
+
+===================================================================  allocreg (65)
+ASM: ; ALLOCREG - gpr10
+
+===================================================================  move (2)
+	DUMP code = move    typf=i  typf2=??   ztyp=i  q1typ=i  q2typ=i
+	DUMP z  < REG(gpr10) >
+	DUMP q1 < VAR( storage:auto:20(sp) ) > 'subParamB' 
+	DUMP q2 < FLAG:0  >
+PRIC2...
+	move int M0+-12(FP)(subParamB)->gpr10 size=4
+-----
+ASM: ; ASSIGN type:i srcreg:noreg -> destreg:gpr10
+;JL - load_reg gpr10 with value of type i
+ASM: ; load_reg targ reg size:4    src data size:4
+ASM: 	;load from var
+ASM: [:SP_STASH]   = MARLO
+ASM: [:SP_STASH+1] = MARHI
+ASM: ; adjust SP by 20
+ASM: MARLO = MARLO + (> 20) ; add lo byte of offset
+ASM: MARHI = MARHI A_PLUS_B_PLUS_C (< $d) ; add hi byte of offset plus any carry
+ASM: ; copy 4 bytes
+ASM: 	[:gpr10+3] = RAM
+ASM: MARLO = MARLO + 1 _S
+ASM: MARHI = MARHI A_PLUS_B_PLUS_C 0	[:gpr10+2] = RAM
+ASM: MARLO = MARLO + 1 _S
+ASM: MARHI = MARHI A_PLUS_B_PLUS_C 0	[:gpr10+1] = RAM
+ASM: MARLO = MARLO + 1 _S
+ASM: MARHI = MARHI A_PLUS_B_PLUS_C 0	[:gpr10+0] = RAM
+ASM: MARLO = MARLO + 1 _S
+ASM: MARHI = MARHI A_PLUS_B_PLUS_C 0
+ASM: MARLO = [:SP_STASH]
+ASM: MARHI = [:SP_STASH+1]
+
+===================================================================  allocreg (65)
+ASM: ; ALLOCREG - gpr9
+
+===================================================================  move (2)
+	DUMP code = move    typf=i  typf2=??   ztyp=i  q1typ=i  q2typ=i
+	DUMP z  < REG(gpr9) >
+	DUMP q1 < VAR( storage:auto:16(sp) ) > 'subParamA' 
+	DUMP q2 < FLAG:0  >
+PRIC2...
+	move int M0+-8(FP)(subParamA)->gpr9 size=4
+-----
+ASM: ; ASSIGN type:i srcreg:noreg -> destreg:gpr9
+;JL - load_reg gpr9 with value of type i
+ASM: ; load_reg targ reg size:4    src data size:4
+ASM: 	;load from var
+ASM: [:SP_STASH]   = MARLO
+ASM: [:SP_STASH+1] = MARHI
+ASM: ; adjust SP by 16
+ASM: MARLO = MARLO + (> 16) ; add lo byte of offset
+ASM: MARHI = MARHI A_PLUS_B_PLUS_C (< $d) ; add hi byte of offset plus any carry
+ASM: ; copy 4 bytes
+ASM: 	[:gpr9+3] = RAM
+ASM: MARLO = MARLO + 1 _S
+ASM: MARHI = MARHI A_PLUS_B_PLUS_C 0	[:gpr9+2] = RAM
+ASM: MARLO = MARLO + 1 _S
+ASM: MARHI = MARHI A_PLUS_B_PLUS_C 0	[:gpr9+1] = RAM
+ASM: MARLO = MARLO + 1 _S
+ASM: MARHI = MARHI A_PLUS_B_PLUS_C 0	[:gpr9+0] = RAM
+ASM: MARLO = MARLO + 1 _S
+ASM: MARHI = MARHI A_PLUS_B_PLUS_C 0
+ASM: MARLO = [:SP_STASH]
+ASM: MARHI = [:SP_STASH+1]
+
+===================================================================  allocreg (65)
+ASM: ; ALLOCREG - gpr8
+
+===================================================================  allocreg (65)
+ASM: ; ALLOCREG - gpr7
+
+===================================================================  move (2)
+	DUMP code = move    typf=i  typf2=??   ztyp=i  q1typ=i  q2typ=i
+	DUMP z  < REG(gpr7) >
+	DUMP q1 < VAR( storage:auto:24(sp) ) > 'subParamC' 
+	DUMP q2 < FLAG:0  >
+PRIC2...
+	move int M0+-16(FP)(subParamC)->gpr7 size=4
+-----
+ASM: ; ASSIGN type:i srcreg:noreg -> destreg:gpr7
+;JL - load_reg gpr7 with value of type i
+ASM: ; load_reg targ reg size:4    src data size:4
+ASM: 	;load from var
+ASM: [:SP_STASH]   = MARLO
+ASM: [:SP_STASH+1] = MARHI
+ASM: ; adjust SP by 24
+ASM: MARLO = MARLO + (> 24) ; add lo byte of offset
+ASM: MARHI = MARHI A_PLUS_B_PLUS_C (< $d) ; add hi byte of offset plus any carry
+ASM: ; copy 4 bytes
+ASM: 	[:gpr7+3] = RAM
+ASM: MARLO = MARLO + 1 _S
+ASM: MARHI = MARHI A_PLUS_B_PLUS_C 0	[:gpr7+2] = RAM
+ASM: MARLO = MARLO + 1 _S
+ASM: MARHI = MARHI A_PLUS_B_PLUS_C 0	[:gpr7+1] = RAM
+ASM: MARLO = MARLO + 1 _S
+ASM: MARHI = MARHI A_PLUS_B_PLUS_C 0	[:gpr7+0] = RAM
+ASM: MARLO = MARLO + 1 _S
+ASM: MARHI = MARHI A_PLUS_B_PLUS_C 0
+ASM: MARLO = [:SP_STASH]
+ASM: MARHI = [:SP_STASH+1]
+
+===================================================================  allocreg (65)
+ASM: ; ALLOCREG - gpr6
+
+===================================================================  move (2)
+	DUMP code = move    typf=i  typf2=??   ztyp=i  q1typ=i  q2typ=i
+	DUMP z  < REG(gpr6) VAR( storage:auto:0(sp) ) > 'subVar1' 
+	DUMP q1 < REG(gpr9) VAR( storage:auto:16(sp) ) > 'subParamA' 
+	DUMP q2 < FLAG:0  >
+PRIC2...
+	move int gpr9(subParamA)->gpr6(subVar1) size=4
+-----
+ASM: ; ASSIGN type:i srcreg:gpr9 -> destreg:gpr6
+;JL - load_reg gpr6 with value of type i
+ASM: ; load_reg targ reg size:4    src data size:4
+ASM: 	;load from reg
+ASM: ; memCopy : move 4 bytes  gpr6 <- gpr9  
+ASM: 	REGA = [:gpr9+0]
+ASM: 	[:gpr6+0] = REGA
+ASM: 	REGA = [:gpr9+1]
+ASM: 	[:gpr6+1] = REGA
+ASM: 	REGA = [:gpr9+2]
+ASM: 	[:gpr6+2] = REGA
+ASM: 	REGA = [:gpr9+3]
+ASM: 	[:gpr6+3] = REGA
+
+===================================================================  allocreg (65)
+ASM: ; ALLOCREG - gpr0
+
+===================================================================  add (27)
+	DUMP code = add    typf=i  typf2=??   ztyp=i  q1typ=i  q2typ=i
+	DUMP z  < REG(gpr0) >
+	DUMP q1 < REG(gpr10) VAR( storage:auto:20(sp) ) > 'subParamB' 
+	DUMP q2 < REG(gpr7) VAR( storage:auto:24(sp) ) > 'subParamC' 
+PRIC2...
+	add int gpr10(subParamB),gpr7(subParamC)->gpr0[S]
+-----
+ASM: 	; ADD gpr0 = gpr10 - gpr7
+ASM: REGA = 0 _S ; clear flags
+ASM: REGA = [:gpr10+0]
+ASM: [:gpr0+0] = REGA A_PLUS_B_PLUS_C $00 _S
+ASM: REGA = [:gpr10+1]
+ASM: [:gpr0+1] = REGA A_PLUS_B_PLUS_C $00 _S
+ASM: REGA = [:gpr10+2]
+ASM: [:gpr0+2] = REGA A_PLUS_B_PLUS_C $00 _S
+ASM: REGA = [:gpr10+3]
+ASM: [:gpr0+3] = REGA A_PLUS_B_PLUS_C $00 _S
+
+===================================================================  add (27)
+	DUMP code = add    typf=i  typf2=??   ztyp=i  q1typ=i  q2typ=i
+	DUMP z  < REG(gpr0) >
+	DUMP q1 < REG(gpr0) >
+	DUMP q2 < REG(gpr11) VAR( storage:auto:28(sp) ) > 'subParamD' 
+PRIC2...
+	add int gpr0[S],gpr11(subParamD)->gpr0[S]
+-----
+ASM: 	; ADD gpr0 = gpr0 - gpr11
+ASM: REGA = 0 _S ; clear flags
+ASM: REGA = [:gpr0+0]
+ASM: [:gpr0+0] = REGA A_PLUS_B_PLUS_C $00 _S
+ASM: REGA = [:gpr0+1]
+ASM: [:gpr0+1] = REGA A_PLUS_B_PLUS_C $00 _S
+ASM: REGA = [:gpr0+2]
+ASM: [:gpr0+2] = REGA A_PLUS_B_PLUS_C $00 _S
+ASM: REGA = [:gpr0+3]
+ASM: [:gpr0+3] = REGA A_PLUS_B_PLUS_C $00 _S
+
+===================================================================  add (27)
+	DUMP code = add    typf=i  typf2=??   ztyp=i  q1typ=i  q2typ=i
+	DUMP z  < REG(gpr0) >
+	DUMP q1 < REG(gpr0) >
+	DUMP q2 < REG(gpr12) VAR( storage:auto:32(sp) ) > 'subParamE' 
+PRIC2...
+	add int gpr0[S],gpr12(subParamE)->gpr0[S]
+-----
+ASM: 	; ADD gpr0 = gpr0 - gpr12
+ASM: REGA = 0 _S ; clear flags
+ASM: REGA = [:gpr0+0]
+ASM: [:gpr0+0] = REGA A_PLUS_B_PLUS_C $00 _S
+ASM: REGA = [:gpr0+1]
+ASM: [:gpr0+1] = REGA A_PLUS_B_PLUS_C $00 _S
+ASM: REGA = [:gpr0+2]
+ASM: [:gpr0+2] = REGA A_PLUS_B_PLUS_C $00 _S
+ASM: REGA = [:gpr0+3]
+ASM: [:gpr0+3] = REGA A_PLUS_B_PLUS_C $00 _S
+
+===================================================================  add (27)
+	DUMP code = add    typf=i  typf2=??   ztyp=i  q1typ=i  q2typ=i
+	DUMP z  < REG(gpr8) VAR( storage:auto:4(sp) ) > 'subVar2' 
+	DUMP q1 < REG(gpr0) >
+	DUMP q2 < REG(gpr13) VAR( storage:auto:36(sp) ) > 'subParamF' 
+PRIC2...
+	add int gpr0[S],gpr13(subParamF)->gpr8(subVar2)
+-----
+ASM: 	; ADD gpr8 = gpr0 - gpr13
+ASM: REGA = 0 _S ; clear flags
+ASM: REGA = [:gpr0+0]
+ASM: [:gpr8+0] = REGA A_PLUS_B_PLUS_C $00 _S
+ASM: REGA = [:gpr0+1]
+ASM: [:gpr8+1] = REGA A_PLUS_B_PLUS_C $00 _S
+ASM: REGA = [:gpr0+2]
+ASM: [:gpr8+2] = REGA A_PLUS_B_PLUS_C $00 _S
+ASM: REGA = [:gpr0+3]
+ASM: [:gpr8+3] = REGA A_PLUS_B_PLUS_C $00 _S
+
+===================================================================  freereg (66)
+ASM: ; FREEREG - gpr0
+
+===================================================================  move (2)
+	DUMP code = move    typf=i  typf2=??   ztyp=i  q1typ=i  q2typ=i
+	DUMP z  < REG(gpr14) VAR( storage:auto:8(sp) ) > 'subVarC' 
+	DUMP q1 < REG(gpr6) VAR( storage:auto:0(sp) ) > 'subVar1' 
+	DUMP q2 < FLAG:0  >
+PRIC2...
+	move int gpr6(subVar1)->gpr14(subVarC) size=4
+-----
+ASM: ; ASSIGN type:i srcreg:gpr6 -> destreg:gpr14
+;JL - load_reg gpr14 with value of type i
+ASM: ; load_reg targ reg size:4    src data size:4
+ASM: 	;load from reg
+ASM: ; memCopy : move 4 bytes  gpr14 <- gpr6  
+ASM: 	REGA = [:gpr6+0]
+ASM: 	[:gpr14+0] = REGA
+ASM: 	REGA = [:gpr6+1]
+ASM: 	[:gpr14+1] = REGA
+ASM: 	REGA = [:gpr6+2]
+ASM: 	[:gpr14+2] = REGA
+ASM: 	REGA = [:gpr6+3]
+ASM: 	[:gpr14+3] = REGA
+
+===================================================================  push (78)
+	DUMP code = push    typf=i  typf2=??   ztyp=i  q1typ=i  q2typ=i
+	DUMP z  < FLAG:0  >
+	DUMP q1 < REG(gpr6) VAR( storage:auto:0(sp) ) > 'subVar1' 
+	DUMP q2 < FLAG:0  >
+PRIC2...
+	push int gpr6(subVar1) size=4
+-----
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = [gpr6+4]
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = [gpr6+3]
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = [gpr6+2]
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = [gpr6+1]
+
+===================================================================  push (78)
+	DUMP code = push    typf=i  typf2=??   ztyp=i  q1typ=i  q2typ=i
+	DUMP z  < FLAG:0  >
+	DUMP q1 < REG(gpr8) VAR( storage:auto:4(sp) ) > 'subVar2' 
+	DUMP q2 < FLAG:0  >
+PRIC2...
+	push int gpr8(subVar2) size=4
+-----
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = [gpr8+4]
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = [gpr8+3]
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = [gpr8+2]
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = [gpr8+1]
+
+===================================================================  push (78)
+	DUMP code = push    typf=i  typf2=??   ztyp=i  q1typ=i  q2typ=i
+	DUMP z  < FLAG:0  >
+	DUMP q1 < REG(gpr7) VAR( storage:auto:24(sp) ) > 'subParamC' 
+	DUMP q2 < FLAG:0  >
+PRIC2...
+	push int gpr7(subParamC) size=4
+-----
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = [gpr7+4]
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = [gpr7+3]
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = [gpr7+2]
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = [gpr7+1]
+
+===================================================================  push (78)
+	DUMP code = push    typf=i  typf2=??   ztyp=i  q1typ=i  q2typ=i
+	DUMP z  < FLAG:0  >
+	DUMP q1 < KONST:3 >
+	DUMP q2 < FLAG:0  >
+PRIC2...
+	push int #I3 size=4
+-----
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = $00
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = $00
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = $00
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = $03
+
+===================================================================  push (78)
+	DUMP code = push    typf=i  typf2=??   ztyp=i  q1typ=i  q2typ=i
+	DUMP z  < FLAG:0  >
+	DUMP q1 < KONST:3 >
+	DUMP q2 < FLAG:0  >
+PRIC2...
+	push int #I3 size=4
+-----
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = $00
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = $00
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = $00
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = $03
+
+===================================================================  push (78)
+	DUMP code = push    typf=i  typf2=??   ztyp=i  q1typ=i  q2typ=i
+	DUMP z  < FLAG:0  >
+	DUMP q1 < KONST:3 >
+	DUMP q2 < FLAG:0  >
+PRIC2...
+	push int #I3 size=4
+-----
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = $00
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = $00
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = $00
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = $03
+
+===================================================================  call (42)
+	DUMP code = call    typf=(null)  typf2=??   ztyp=(null)  q1typ=(null)  q2typ=(null)
+	DUMP z  < FLAG:0  >
+	DUMP q1 < VAR( storage:extern:l93993033213296 ) > 'sub' 
+	DUMP q2 < FLAG:0  >
+PRIC2...
+	call function M0+_sub(sub) size=24 => sub
+-----
+ASM: ; CALL
+ASM: 	; call	_sub
+
+===================================================================  allocreg (65)
+ASM: ; ALLOCREG - gpr0
+
+===================================================================  get-return (93)
+	DUMP code = get-return    typf=i  typf2=??   ztyp=i  q1typ=i  q2typ=i
+	DUMP z  < REG(gpr0) >
+	DUMP q1 < FLAG:0  >
+	DUMP q2 < FLAG:0  >
+PRIC2...
+	get-return int ->gpr0[S]
+-----
+ASM: ; GETRETURN
+ASM: ; targ gpr0 and src gpr0 are same - so nothing to do
+
+===================================================================  freereg (66)
+ASM: ; FREEREG - gpr0
+
+===================================================================  push (78)
+	DUMP code = push    typf=i  typf2=??   ztyp=i  q1typ=i  q2typ=i
+	DUMP z  < FLAG:0  >
+	DUMP q1 < REG(gpr6) VAR( storage:auto:0(sp) ) > 'subVar1' 
+	DUMP q2 < FLAG:0  >
+PRIC2...
+	push int gpr6(subVar1) size=4
+-----
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = [gpr6+4]
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = [gpr6+3]
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = [gpr6+2]
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = [gpr6+1]
+
+===================================================================  push (78)
+	DUMP code = push    typf=i  typf2=??   ztyp=i  q1typ=i  q2typ=i
+	DUMP z  < FLAG:0  >
+	DUMP q1 < REG(gpr8) VAR( storage:auto:4(sp) ) > 'subVar2' 
+	DUMP q2 < FLAG:0  >
+PRIC2...
+	push int gpr8(subVar2) size=4
+-----
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = [gpr8+4]
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = [gpr8+3]
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = [gpr8+2]
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = [gpr8+1]
+
+===================================================================  push (78)
+	DUMP code = push    typf=i  typf2=??   ztyp=i  q1typ=i  q2typ=i
+	DUMP z  < FLAG:0  >
+	DUMP q1 < REG(gpr7) VAR( storage:auto:24(sp) ) > 'subParamC' 
+	DUMP q2 < FLAG:0  >
+PRIC2...
+	push int gpr7(subParamC) size=4
+-----
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = [gpr7+4]
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = [gpr7+3]
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = [gpr7+2]
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = [gpr7+1]
+
+===================================================================  push (78)
+	DUMP code = push    typf=i  typf2=??   ztyp=i  q1typ=i  q2typ=i
+	DUMP z  < FLAG:0  >
+	DUMP q1 < KONST:3 >
+	DUMP q2 < FLAG:0  >
+PRIC2...
+	push int #I3 size=4
+-----
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = $00
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = $00
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = $00
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = $03
+
+===================================================================  push (78)
+	DUMP code = push    typf=i  typf2=??   ztyp=i  q1typ=i  q2typ=i
+	DUMP z  < FLAG:0  >
+	DUMP q1 < KONST:3 >
+	DUMP q2 < FLAG:0  >
+PRIC2...
+	push int #I3 size=4
+-----
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = $00
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = $00
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = $00
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = $03
+
+===================================================================  push (78)
+	DUMP code = push    typf=i  typf2=??   ztyp=i  q1typ=i  q2typ=i
+	DUMP z  < FLAG:0  >
+	DUMP q1 < KONST:3 >
+	DUMP q2 < FLAG:0  >
+PRIC2...
+	push int #I3 size=4
+-----
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = $00
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = $00
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = $00
+ASM: MARLO = MARLO - 1 _S
+ASM: MARHI = MARHI A_MINUS_B_MINUS_C 0
+ASM: RAM = $03
+
+===================================================================  call (42)
+	DUMP code = call    typf=(null)  typf2=??   ztyp=(null)  q1typ=(null)  q2typ=(null)
+	DUMP z  < FLAG:0  >
+	DUMP q1 < VAR( storage:extern:l93993033213296 ) > 'sub' 
+	DUMP q2 < FLAG:0  >
+PRIC2...
+	call function M0+_sub(sub) size=24 => sub
+-----
+ASM: ; CALL
+ASM: 	; call	_sub
+
+===================================================================  allocreg (65)
+ASM: ; ALLOCREG - gpr0
+
+===================================================================  get-return (93)
+	DUMP code = get-return    typf=i  typf2=??   ztyp=i  q1typ=i  q2typ=i
+	DUMP z  < REG(gpr0) >
+	DUMP q1 < FLAG:0  >
+	DUMP q2 < FLAG:0  >
+PRIC2...
+	get-return int ->gpr0[S]
+-----
+ASM: ; GETRETURN
+ASM: ; targ gpr0 and src gpr0 are same - so nothing to do
+
+===================================================================  freereg (66)
+ASM: ; FREEREG - gpr0
+
+===================================================================  set-return (94)
+	DUMP code = set-return    typf=i  typf2=??   ztyp=i  q1typ=i  q2typ=i
+	DUMP z  < FLAG:0  >
+	DUMP q1 < REG(gpr6) VAR( storage:auto:0(sp) ) > 'subVar1' 
+	DUMP q2 < FLAG:0  >
+PRIC2...
+	set-return int gpr6(subVar1)
+-----
+ASM: ; SETRETURN - zreg = gpr0
+;JL - load_reg gpr0 with value of type i
+ASM: ; load_reg targ reg size:4    src data size:4
+ASM: 	;load from reg
+ASM: ; memCopy : move 4 bytes  gpr0 <- gpr6  
+ASM: 	REGA = [:gpr6+0]
+ASM: 	[:gpr0+0] = REGA
+ASM: 	REGA = [:gpr6+1]
+ASM: 	[:gpr0+1] = REGA
+ASM: 	REGA = [:gpr6+2]
+ASM: 	[:gpr0+2] = REGA
+ASM: 	REGA = [:gpr6+3]
+ASM: 	[:gpr0+3] = REGA
+
+===================================================================  label (69)
+	DUMP code = label    typf=f  typf2=??   ztyp=f  q1typ=f  q2typ=f
+	DUMP z  < FLAG:0  >
+	DUMP q1 < FLAG:0  >
+	DUMP q2 < FLAG:0  >
+PRIC2...
+L6
+-----
+ASM: l6:
+ASM: # stacksize=0+??
+
+ASM: ;JL gen_var_head
+ASM: 	.globl	_static1
+ASM: 	.data
+ASM: _static1:
+ASM: 	dc.i	1
+ASM: ;JL gen_var_head
+ASM: 	.globl	_static2
+ASM: _static2:
+ASM: 	dc.i	2
+ASM: 	noreg :	BYTES [0,0,0,0]
+ASM: 	gtmp1 :	BYTES [0,0,0,0]
+ASM: 	gtmp2 :	BYTES [0,0,0,0]
+ASM: 	ftmp1 :	BYTES [0,0,0,0]
+ASM: 	ftmp2 :	BYTES [0,0,0,0]
+ASM: 	gpr0  :	BYTES [0,0,0,0]
+ASM: 	gpr1  :	BYTES [0,0,0,0]
+ASM: 	gpr2  :	BYTES [0,0,0,0]
+ASM: 	gpr3  :	BYTES [0,0,0,0]
+ASM: 	gpr4  :	BYTES [0,0,0,0]
+ASM: 	gpr5  :	BYTES [0,0,0,0]
+ASM: 	gpr6  :	BYTES [0,0,0,0]
+ASM: 	gpr7  :	BYTES [0,0,0,0]
+ASM: 	gpr8  :	BYTES [0,0,0,0]
+ASM: 	gpr9  :	BYTES [0,0,0,0]
+ASM: 	gpr10 :	BYTES [0,0,0,0]
+ASM: 	gpr11 :	BYTES [0,0,0,0]
+ASM: 	gpr12 :	BYTES [0,0,0,0]
+ASM: 	gpr13 :	BYTES [0,0,0,0]
+ASM: 	gpr14 :	BYTES [0,0,0,0]
+ASM: 	gpr15 :	BYTES [0,0,0,0]
+ASM: 	fpr0  :	BYTES [0,0,0,0]
+ASM: 	fpr1  :	BYTES [0,0,0,0]
+ASM: 	fpr2  :	BYTES [0,0,0,0]
+ASM: 	fpr3  :	BYTES [0,0,0,0]
+ASM: 	fpr4  :	BYTES [0,0,0,0]
+ASM: 	fpr5  :	BYTES [0,0,0,0]
+ASM: 	fpr6  :	BYTES [0,0,0,0]
+ASM: 	fpr7  :	BYTES [0,0,0,0]
+ASM: 	fpr8  :	BYTES [0,0,0,0]
+ASM: 	fpr9  :	BYTES [0,0,0,0]
+ASM: 	fpr10 :	BYTES [0,0,0,0]
+ASM: 	fpr11 :	BYTES [0,0,0,0]
+ASM: 	fpr12 :	BYTES [0,0,0,0]
+ASM: 	fpr13 :	BYTES [0,0,0,0]
+ASM: 	fpr14 :	BYTES [0,0,0,0]
+ASM: 	fpr15 :	BYTES [0,0,0,0]
+ASM: 	sp_stash:	BYTES [0,0,0,0]
+ASM: 	sp    :	BYTES [0,0,0,0]
+OK
