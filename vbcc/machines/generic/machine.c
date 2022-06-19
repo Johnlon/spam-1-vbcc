@@ -892,6 +892,8 @@ void gen_dc(FILE *f, int t, struct const_list *p)
 }
 
 
+void dumpreg();
+
 /*  The main code-generation routine.                   */
 /*  f is the stream the code should be written to.      */
 /*  p is a pointer to a doubly linked list of ICs       */
@@ -903,6 +905,10 @@ void gen_dc(FILE *f, int t, struct const_list *p)
 void gen_code(FILE *f, struct IC *p, struct Var *v, zmax offset)
 /*  The main code-generation.                                           */
 {
+    dumpreg();
+    printf("gen_code() %s frame=%ld\n", v->identifier, offset);
+    fflush(stdout);
+
     int c, t, i;
     struct IC *m;
     argsize = 0;
@@ -1207,3 +1213,32 @@ void cleanup_db(FILE *f) {
     if (f) section = -1;
 }
 
+void dumpreg() {
+    printf("REGDUMP...\n");
+    for (int c = 1; c <= MAXR; c++) {
+        if (regsa[c] || regused[c] || regs[c] || regs_modified[c]) {
+            printf("%10s ", regnames[c]);
+            if (regsa[c]) {
+                printf("%7s ", "regsa");
+            } else {
+                printf("%7s ", "");
+            }
+            if (regused[c]) {
+                printf("%7s", "used" );
+            } else {
+                printf("%7s", "" );
+            }
+            if (regs[c]) {
+                printf("%7s", "regs" );
+            } else {
+                printf("%7s", "" );
+            }
+            if (regs_modified[c]) {
+                printf("%7s", "mod" );
+            } else {
+                printf("%7s", "" );
+            }
+            printf("\n");
+        }
+    }
+}

@@ -1,4 +1,5 @@
 /*  $VER: vbcc (declaration.c) $Revision: 1.90 $    */
+void dumpreg();
 
 #include <string.h>
 #include <stdio.h>
@@ -3516,7 +3517,11 @@ void var_declaration(void)
 			}
 			if (out && !only_inline && !(c_flags[5] & USEDFLAG)) {
 				memset(regs_modified, 0, RSIZE);
+        
 				gen_code(out, first_ic, v, max_offset);
+
+        dumpreg();
+
 				static_stack_check(v);
 				v->flags |= GENERATED;
 #ifdef HAVE_REGS_MODIFIED

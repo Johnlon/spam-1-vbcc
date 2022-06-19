@@ -43,6 +43,7 @@ enum {
     R_GTMP1, R_GTMP2,
     R_FTMP1, R_FTMP2,
     R_G0, R_G1, R_G2, R_G3, R_G4, R_G5, R_G6, R_G7, R_G8, R_G9, R_GA, R_GB, R_GC, R_GD, R_GE, R_GF,
+    R_G10, R_G11, R_G12, R_G13, R_G14, R_G15, R_G16, R_G17, R_G18, R_G19, R_G1A, R_G1B, R_G1C, R_G1D, R_G1E, R_G1F,
     R_F0, R_F1, R_F2, R_F3, R_F4, R_F5, R_F6, R_F7, R_F8, R_F9, R_FA, R_FB, R_FC, R_FD, R_FE, R_FF,
     SP_STASH,
     SP
@@ -97,7 +98,8 @@ enum {
 /*  Parameters on the stack should be pushed in order rather than   */
 /*  in reverse order.                                               */
 //#define ORDERED_PUSH FIXED_SP
-#define ORDERED_PUSH 1
+//#define ORDERED_PUSH 1
+//undef ORDERED_PUSH
 
 /*  Structure for reg_parm().                                       */
 struct reg_handle{
@@ -106,22 +108,27 @@ struct reg_handle{
 };
 
 /*  We have some target-specific variable attributes.               */
+// FIXME undef this
 #define HAVE_TARGET_ATTRIBUTES
 
 /* We have target-specific pragmas */
+// FIXME undef this
 #define HAVE_TARGET_PRAGMAS
 
 /*  We keep track of all registers modified by a function.          */
 #define HAVE_REGS_MODIFIED 1
 
-/* We have a implement our own cost-functions to adapt 
+/* We have a implement our own cost-functions to adapt
    register-allocation */
-#define HAVE_TARGET_RALLOC 1
-#undef HAVE_TARGET_RALLOC1
+
+//#define HAVE_TARGET_RALLOC 1
+#undef HAVE_TARGET_RALLOC
+/*
 #define cost_move_reg(x,y) 1
 #define cost_load_reg(x,y) 2
 #define cost_save_reg(x,y) 2
 #define cost_pushpop_reg(x) 3
+ */
 
 /* size of buffer for asm-output, this can be used to do
    peephole-optimizations of the generated assembly-output */

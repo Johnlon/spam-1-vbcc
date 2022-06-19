@@ -1,4 +1,6 @@
 /*  $VER: vbcc (main.c) $Revision: 1.67 $    */
+void dumpreg();
+
 #include "vbcc_cpp.h"
 #include "vbc.h"
 #include "opt.h"
@@ -373,6 +375,7 @@ void gen_function(FILE *f,Var *v,int real_gen)
         else
             had_regs=0;
         gen_code(0,first_ic,v,max_offset);
+        dumpreg();
 #ifdef HAVE_REGS_MODIFIED
         if(!v->fi) v->fi=new_fi();
         {
@@ -414,6 +417,7 @@ void gen_function(FILE *f,Var *v,int real_gen)
             pric(ic2,v->fi->opt_ic);
         }
         gen_code(f,v->fi->opt_ic,v,v->fi->max_offset);
+        dumpreg();
         static_stack_check(v);
     }
 }
@@ -1500,6 +1504,7 @@ void do_pragma(char *s)
     }else if(!strncmp("end_header",s,10)){
         header_cnt--;
     }else if(!strncmp("pfi",s,3)){
+        printf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!PFI\n");
         Var *v;
         s+=3;pragma_killsp();
         pragma_cpbez(buff,s);

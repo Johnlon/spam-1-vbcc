@@ -1,4 +1,4 @@
-// WORKS IN SIMULATOR
+// FIXME : FAILS COMPILE WORKS IN SIMULATOR
 
 void halt(__reg("gpr0") char) = "\tHALT = [:gpr0]\n";
 

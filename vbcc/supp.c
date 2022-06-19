@@ -721,9 +721,9 @@ void emitval(FILE *f,union atyps *p,int t)
     if(t==POINTER){vumax=zul2zum(p->vulong);emitzum(f,vumax);}
 }
 #endif
-
+/*
 void pric2NEW(FILE *f,IC *p)
-    /*  Gibt ein IC aus.  */
+    //  Gibt ein IC aus.
 {
 
     if(p->code>NOP) ierror(0);
@@ -789,6 +789,7 @@ void pric2NEW(FILE *f,IC *p)
     }
 #endif
 }
+ */
 void pric2(FILE *f,IC *p)
     /*  Gibt ein IC aus.  */
 {
@@ -1109,25 +1110,32 @@ void probj(FILE *f,obj *p,int t)
     }
     if(p->flags&VARADR) fprintf(f,"#");
     if(p->flags&VAR) {
-        if(!(p->flags&REG))
+        if(!(p->flags&REG)) {
+            fprintf(f, "non-reg ");
             printval(f,&p->val,MAXINT);
+        }
+
         if(p->flags&REG){
             fprintf(f,"%s",regnames[p->reg]);
         }else if(p->v->storage_class==AUTO||p->v->storage_class==REGISTER){
             fprintf(f,"+%ld(FP)", zm2l(p->v->offset));
         }else{
             if(p->v->storage_class==STATIC){
+                // JL offset seems to match initialiser label in gen_dc
+                //fprintf(stderr , "JL  %ld + l%ld\n", p->val.vumax, p->v->offset);
+
                 fprintf(f,"+L%ld",zm2l(p->v->offset));
             }else{
                 fprintf(f,"+_%s",p->v->identifier);
             }
         }
         if(*p->v->identifier)
-            fprintf(f,"(%s)",p->v->identifier);
+            fprintf(f,"(id:%s)",p->v->identifier);
         else if(p->v->description)
-            fprintf(f,"(%s)",p->v->description);
-        else
-            fprintf(f,"(%p)",(void *)p->v);
+            fprintf(f,"(desc:%s)",p->v->description);
+        else {
+            fprintf(f,"(p:%p)",(void *)p->v);
+        }
         if(p->v->reg) fprintf(f,":%s",regnames[abs(p->v->reg)]);
     }
     if((p->flags&REG)&&!(p->flags&VAR)) fprintf(f,"%s",regnames[p->reg]);

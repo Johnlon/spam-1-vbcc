@@ -1,7 +1,39 @@
+#!/bin/bash
+
+set -e 
+set -o pipefail
+
 T=$1
+if [ -z $T ]
+then
+  T=/tmp/vbccTest.c
+  A=/tmp/vbccTest.asm
+  cat > $T
+else
+  T=test$T.c
+  A=test$T.asm
+fi
+
+VBCC_HOME=/home/john/work/vbcc
+cd $VBCC_HOME/demo
 
 export VBCC=/home/john/work/vbcc/dist/
 export PATH=/home/john/work/vbcc/dist//bin:$PATH/
 
+ulimit -S -c unlimited
+
 # turn off optimisations of inline asm
-../dist/bin/vc -S $FLAGS -no-inline-peephole  +g.config test$T.c   2>&1
+rm -rf $T.out
+
+../dist/bin/vc  -S $FLAGS -no-inline-peephole  +g.config $T   2>&1 | tee -a $T.out
+
+set +e
+egrep "^warning" $T.out 2>&1
+if [ $? -eq 0 ]
+then
+  echo vbcc warnings
+  exit 1
+fi
+
+
+

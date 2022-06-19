@@ -523,6 +523,7 @@ extern char *ename[];
 extern int align_arguments; /* arguments correctly aligned on stack or
 			       just stackalign? */
 extern zmax align[],maxalign,stackalign;
+
 /*  an empty string */
 extern char *empty;
 extern zchar vchar; extern zuchar vuchar;

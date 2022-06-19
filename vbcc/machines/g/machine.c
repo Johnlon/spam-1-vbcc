@@ -19,6 +19,11 @@
  *
  * regtype = no discussion on this nor why it's appropriate to set only the "flags" fields of Typ in the llong/ldbl/lchar initialiser
  *
+ * compiling with -O0 causes registers to only be used transiently for instructions processing by the compiler
+ * so state is not carried between instructions in registers. So in my case I had a problem where registers
+ * were not being preserved across a subroutine as sub was trampling it and my back end wasn't backing them up
+ * but when running with -O0 it worked fine. Useful for debugging.
+ *
  * */
 void push(int ignored) {
     // JL added to make ti compile
@@ -31,6 +36,9 @@ void push(int ignored) {
 #define BASETYPE(x) ((x & NQ))
 #define ISUNSIGNED(t) ((t) & UNSIGNED)
 #define ISSIGNED(t) (!ISUNSIGNED(t))
+#define ISCHAR(t) ((t&NQ)==CHAR)
+#define ISSHORT(t) ((t&NQ)==SHORT||(t&NQ)==INT||(t&NQ)==POINTER)
+#define ISFPOINTER(t) ((t&NQ)==FPOINTER)
 #define ISNEGATIVEBYTE(x)   ( (x) & 128 )
 
 // truncate to a byte size value - removes any leading sign extension
@@ -40,7 +48,7 @@ void konstCopy(FILE *f, char *targName, int targSize, struct obj *src, int srcTy
 
 void memCopy(FILE *f, int isSigned, char *targName, char *srcName, int targSize, int srcSize);
 
-int firstFn=1;
+int firstFn = 1;
 
 /*
 #define KONST 1
@@ -92,8 +100,16 @@ int isVar(struct obj *x) {
     return (x->flags & (VAR | REG)) == VAR;
 }
 
+int involvesKonst(struct obj *x) {
+    return (x->flags & KONST);
+}
+
 int involvesReg(struct obj *x) {
-    return (x->flags & REG) == REG;
+    return (x->flags & REG);
+}
+
+int involvesVar(struct obj *x) {
+    return (x->flags & VAR);
 }
 
 //#define involvesreg(x) ((p->x.flags&(REG))==REG)
@@ -124,14 +140,16 @@ int q1Reg(struct IC *p) {
     if (isReg(&p->q1))
         return p->q1.reg;
     else
-        return 0;
+        terror("JL - picking q1 reg when not a register\n");
+    //return 0;
 }
 
 int q2Reg(struct IC *p) {
     if (isReg(&p->q2))
         return p->q2.reg;
     else
-        return 0;
+        terror("JL - picking q2 reg when not a register\n");
+    //return 0;
 }
 
 int zReg(struct IC *p) {
@@ -139,12 +157,13 @@ int zReg(struct IC *p) {
     if (isReg(&p->z)) { // && (THREE_ADDR || !compare_objects(&p->q2, &p->z))) {
         return p->z.reg;
     } else {
+        terror("JL - picking z reg wen not a register\n");
         // FIXME = JL IS THIS NEEDED - WHY NOT 0? WHY NOT JUST ACCEPT THE vbcc value which was presumanbly 0 or undef or n/a
-        if (ISFLOAT(ztyp(p))) {
-            return R_FTMP1;
-        } else {
-            return R_GTMP1;
-        }
+        //if (ISFLOAT(ztyp(p))) {
+        //    return R_FTMP1;
+        //} else {
+        //    return R_GTMP1;
+        //}
     }
 }
 
@@ -154,6 +173,8 @@ void dumpIC(FILE *f, struct IC *p);
 void dumpObj(FILE *f, char *label, struct obj *o, int otyp, struct IC *p);
 
 static long real_offset(struct obj *o);
+
+int freturn(struct Typ *t);
 
 void emitvalJL(FILE *f, union atyps *p, int t, int byteToEmit);
 
@@ -239,8 +260,8 @@ char *g_attr_name[] = {"__interrupt", 0};
 #define USE_COMMONS (0)
 
 // JL aligns with the indexes of the "typenames" in supp.h (approx line 14) but index 0 is filled with a non-type called "??" whose purpose I don't understand
+// Also see typname at top of in supp.c
 /* alignment of basic data-types, used to initialize align[] */
-//static long malign[MAX_TYPE + 1] = {0, 1, 2, 4, 4, 4, 4, 8, 8, 1, 4, 1, 1, 1, 4, 1};
 static long malign[MAX_TYPE + 1] = {0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
 /* sizes of basic data-types, used to initialize sizetab[] */
 static long msizetab[MAX_TYPE + 1] = {0, 1, 2, 4, 4, 8, 4, 8, 8, 0, 4, 0, 0, 0, 4, 0};
@@ -269,13 +290,12 @@ const char *dt(int t) {
 
 static long stack;
 static int stack_valid;
-/*
+
 static int section = -1, newobj;
 static char *codename = "\t.text\n",
         *dataname = "\t.data\n",
         *bssname = "",
         *rodataname = "\t.section\t.rodata\n";
-        * */
 
 /* return-instruction */
 //static char *ret;
@@ -286,17 +306,11 @@ static int exit_label;
 /* assembly-prefixes for labels and external identifiers */
 static char *labprefix = "_L", *idprefix = "_";
 
-#if FIXED_SP
 /* variables to calculate the size and partitioning of the stack-frame
    in the case of FIXED_SP */
-static long frameoffset, pushed, maxpushed, framesize;
-#else
-/* variables to keep track of the current stack-offset in the case of
-   a moving stack-pointer */
-static long notpopped, dontpop, stackoffset, maxpushed;
-#endif
+static long frameoffset, maxpushed, framesize;
 
-static long localsize, rsavesize, argsize;
+static long localsize, pushed, rsavesize, argsize;
 
 struct gc_state {
     FILE *f;
@@ -359,16 +373,21 @@ When inside the function (ie the callee) ....
 static long real_offset(struct obj *o) {
     long off = zm2l(o->v->offset);
     if (off < 0) {
+        //    fprintf(stderr, "real offset -ve off %ld\n", off);
         /* function parameter */
-        off = localsize + rsavesize + 4 - off - zm2l(maxalign);
+        // 4 bytes to skips return address
+        //off = localsize + rsavesize + 4 - off - zm2l(maxalign);
+//        off = localsize + rsavesize - off - zm2l(maxalign);
+
+            off = - off + localsize;
+//        fprintf(stderr, "real offset -ve off now %ld  localsise %ld rsavesize %ld maxalign %ld\n", off, localsize, rsavesize, maxalign);
     }
 
-#if FIXED_SP
     off += argsize;
-#else
-    off += stackoffset;
-#endif
+ //       fprintf(stderr, "real offset plus argsize  %ld  off now %ld\n", argsize, off);
     off += zm2l(o->val.vmax);
+
+    // fprintf(stderr, "real offset plus vmax  %ld  off now %ld\n", o->val.vmax, off);
     return off;
 }
 
@@ -404,25 +423,24 @@ static int special_section(FILE *f, struct Var *v) {
 }
  */
 
-/* generate code to load the address of a variable into register r */
-static void load_address(FILE *f, int r, struct obj *o, int type)
-/*  Generates code to load the address of a variable into register r.   */
+/* generate code to load the address of a variable into register targ */
+static void load_address(FILE *f, int targ, struct obj *o, int type)
+/*  Generates code to load the address of a variable into register targ.   */
 {
-    fprintf(stderr, "ADDRESS NOT IMPL");
-    ierror(1); // JL
-
     if (!(o->flags & VAR)) ierror(0);
+
     if (o->v->storage_class == AUTO || o->v->storage_class == REGISTER) {
-        long off = real_offset(o);
-        if (THREE_ADDR) {
-            emit(f, "\tadd.%s\t%s,%s,%ld\n", dt(POINTER), regnames[r], regnames[SP], off);
-        } else {
-            emit(f, "\tmov.%s\t%s,%s\n", dt(POINTER), regnames[r], regnames[SP]);
-            if (off)
-                emit(f, "\tadd.%s\t%s,%ld\n", dt(POINTER), regnames[r], off);
-        }
+        long offset = real_offset(o);
+        //         DUMP q1 < VAR( storage:auto:0(sp) ) > 'value'
+        // address is the SP + the offset so make that calc
+        emit(f, "\t[:%s+0] = MARLO + (> %d) _S\n", regnames[targ], offset);
+        emit(f, "\t[:%s+1] = MARHI A_PLUS_B_PLUS_C (< %d)\n", regnames[targ], offset);
+        emit(f, "\t[:%s+2] = 0\n", regnames[targ]);
+        emit(f, "\t[:%s+3] = 0\n", regnames[targ]);
+
     } else {
-        emit(f, "\tmov.%s\t%s,", dt(POINTER), regnames[r]);
+        terror("load_address not auto");
+        emit(f, "\tmov.%s\t%s,", dt(POINTER), regnames[targ]);
         emit_obj(f, o, type);
         emit(f, "\n");
     }
@@ -513,8 +531,6 @@ void emitvalJL(FILE *f, union atyps *p, int t, int byteToEmit) {
 }
 
 /* Generates code to load a memory object into register targReg.
- * tmp is a general purpose register which may be used.
- * tmp can be targReg.
  * */
 static void load_reg(FILE *f, int targReg, struct obj *o, int type) {
     type &= NU;
@@ -533,9 +549,10 @@ static void load_reg(FILE *f, int targReg, struct obj *o, int type) {
     char *targRegName = regnames[targReg];
     int targRegSize = regsize[targReg];
     struct Typ *pTargType = regtype[targReg];
+    int typeSize = msizetab[BASETYPE(type)];
 
     if (isKonst(o)) {
-        emit(f, "\t; load_reg targ from KONST - reg size:%d    src data size:%d\n", targRegSize, msizetab[BASETYPE(type)]);
+        emit(f, "\t; load_reg targ from KONST - reg size:%d    src data size:%d\n", targRegSize, typeSize);
         if (ISINT(type)) {
             konstCopy(f, targRegName, targRegSize, o, type);
             return;
@@ -544,7 +561,8 @@ static void load_reg(FILE *f, int targReg, struct obj *o, int type) {
         };
         return;
     } else if (isReg(o)) {
-        emit(f, "\t; load_reg targ from REG - reg size:%d    src data size:%d\n", targRegSize, msizetab[BASETYPE(type)]);
+        emit(f, "\t; load_reg targ from REG - reg size:%d    src data size:%d\n", targRegSize,
+             msizetab[BASETYPE(type)]);
         int srcReg = o->reg;
         char *srcRegName = regnames[srcReg];
         int srcRegSize = regsize[srcReg];
@@ -556,12 +574,28 @@ static void load_reg(FILE *f, int targReg, struct obj *o, int type) {
                 srcRegSize);
         return;
     } else if (isVar(o)) {
-        emit(f, "\t; load_reg targ from VAR - reg size:%d    src data size:%d\n", targRegSize, msizetab[BASETYPE(type)]);
+        emit(f, "\t; load_reg targ from VAR - reg size:%d    src data size:%d\n", targRegSize,
+             msizetab[BASETYPE(type)]);
 
-        // load bytes relative to stack ptr
+        /* Doc Says ....
+            The only case where typf == ARRAY should be in automatic initializations.
+            It is also possible that (typf&NQ) == CHAR but the size is != 1. This is created
+            for an inline memcpy/strcpy where the type is not known.
+         */
+//        if (ISPOINTER(type) || (ISCHAR(type) && zm2l(o->val.vmax) != 1)) {
+//        if (ISARRAY(type) || (ISCHAR(type) && zm2l(o->val.vmax) != 1)) {
+//            if ((ISCHAR(type) && zm2l(o->val.vmax) != 1)) {
+        if (ISARRAY(type)) {
+            // what is this
+            fprintf(stderr, "[[[[[[ %ld ]]]]]\n", o->val.vmax);
+            emit(f, "ERROR IF ASSIGN & (TYPE>POINTER|(TYPE=CHAR & VAL %d!=1))\n", zm2l(o->val.vmax));
+//            ierror(0);
+        }
+
+        // read from load bytes relative to stack ptr
         if (o->v->storage_class != AUTO && o->v->storage_class != REGISTER) {
             fprintf(stderr, "FIXME - AUTO and REGISTER storage classes only\n");
-            ierror(1);
+            //JLierror(1);
         }
 
         // save marlo which hold the SP
@@ -572,7 +606,7 @@ static void load_reg(FILE *f, int targReg, struct obj *o, int type) {
         // adjust the MAR according to the offset
         int offset = real_offset(o);
 
-        emit(f, "\t; adjust SP by offset %d\n", offset);
+        emit(f, "\t; adjust SP by offset %d to point at var\n", offset);
         emit(f, "\tMARLO = MARLO + (> %d) _S            ; add lo byte of offset\n", offset);
         emit(f, "\tMARHI = MARHI A_PLUS_B_PLUS_C (< %d) ; add hi byte of offset plus any carry\n", offset);
 
@@ -581,7 +615,7 @@ static void load_reg(FILE *f, int targReg, struct obj *o, int type) {
         int size = msizetab[BASETYPE(type)];
         if (size == 0) {
             fprintf(stderr, "CANT COPY 0 BYTES\n");
-            ierror(1);
+            //JLierror(1);
         }
 
         emit(f, "\t; copy %d bytes\n", size);
@@ -600,6 +634,29 @@ static void load_reg(FILE *f, int targReg, struct obj *o, int type) {
         emit(f, "\t; restore SP\n");
         emit(f, "\tMARLO = [:sp_stash]\n");
         emit(f, "\tMARHI = [:sp_stash+1]\n");
+        return;
+    } else if ((o->flags & (REG | DREFOBJ)) == (REG | DREFOBJ)) {
+        // eg         DUMP q1 < REG(gpr6) DREFOBJ VAR( storage:auto:4(sp) ) > 'pValue'    where p is an int* and I am dereferencing it
+        emit(f, "\t; stash SP\n");
+        emit(f, "\t[:sp_stash]   = MARLO\n");
+        emit(f, "\t[:sp_stash+1] = MARHI\n");
+
+        char *srcRegName = regnames[o->reg];
+        emit(f, "\tMARLO = [:%s]\n", srcRegName);
+        emit(f, "\tMARHI = [:%s+1]\n", srcRegName);
+
+        int pos = 0;
+        while (pos < typeSize) {
+            emit(f, "\tREGA  = RAM\n");
+            emit(f, "\t[:%s+%d] = REGA\n", targRegName, pos);
+            emit(f, "\tMARLO = MARLO + 1 _S\n");
+            emit(f, "\tMARHI = MARHI A_PLUS_B_PLUS_C 0\n");
+            pos++;
+        }
+
+        emit(f, "\tMARLO = [:sp_stash]\n");
+        emit(f, "\tMARHI = [:sp_stash+1]\n");
+
         return;
     }
 
@@ -883,7 +940,7 @@ static void function_top(FILE *f, struct Var *v, long offset) {
         emit(f, "PCHITMP   = < :_main\n");
         emit(f, "PC        = > :_main\n");
     }
-    firstFn = 1;
+    firstFn = 0;
 
 
 /*    if (!special_section(f, v) && section != CODE) {
@@ -893,7 +950,7 @@ static void function_top(FILE *f, struct Var *v, long offset) {
     */
     if (v->storage_class == EXTERN) {
         if ((v->flags & (INLINEFUNC | INLINEEXT)) != INLINEFUNC)
-   //         emit(f, "\t.global\t%s%s\n", idprefix, v->identifier);
+            //         emit(f, "\t.global\t%s%s\n", idprefix, v->identifier);
             emit(f, "%s%s:\n", idprefix, v->identifier);
     } else
         emit(f, "%s%ld:\n", labprefix, zm2l(v->offset));
@@ -906,6 +963,12 @@ static void function_top(FILE *f, struct Var *v, long offset) {
         emit(f, "MARLO   = [:sp]\n");
         emit(f, "MARHI   = [:sp+1]\n");
     }
+
+    if (offset) {
+        emit(f, "\t; adjust SP to skip over the local variable stack by offset %d\n", offset);
+        emit(f, "\tMARLO = MARLO - (> %d) _S            ; sub lo byte of offset\n", offset);
+        emit(f, "\tMARHI = MARHI A_MINUS_B_MINUS_C (< %d) ; sub hi byte of offset plus any carry\n", offset);
+    }
 }
 
 /* generates the function exit code */
@@ -917,21 +980,28 @@ static void function_bottom(FILE *f, struct Var *v, long offset) {
         emit(f, "\tMARHI = MARHI A_PLUS_B_PLUS_C (< %d) ; add hi byte of offset plus any carry\n", offset);
     }
 
-    emit(f, "\t; return\n");
 
-    emit(f, "\t; pop PCHITMP\n");
-    emit(f, "\tPCHITMP = RAM\n");
-    emit(f, "\tMARLO   = MARLO + 1 _S\n");
-    emit(f, "\tMARHI   = MARHI A_PLUS_B_PLUS_C 0\n");
-    emit(f, "\t; pop PC\n");
-    emit(f, "\tREGA    = RAM\n");
-    emit(f, "\tMARLO   = MARLO + 1 _S\n");
-    emit(f, "\tMARHI   = MARHI A_PLUS_B_PLUS_C 0\n");
-    emit(f, "\t; pop 2 unused PC byes\n");
-    emit(f, "\tMARLO   = MARLO + 2 _S\n");
-    emit(f, "\tMARHI   = MARHI A_PLUS_B_PLUS_C 0\n");
-    emit(f, "\t; do jump\n");
-    emit(f, "\tPC      = REGA\n");
+    if (strcmp(v->identifier, "main") == 0) {
+        emit(f, "\t; end of program - halt with main exit code\n");
+        int retReg = freturn(v->vtyp);
+        emit(f, "\tHALT = [:%s]\n", regnames[retReg]);
+    } else {
+        emit(f, "\t; do return from function\n");
+
+        emit(f, "\t;   pop PCHITMP\n");
+        emit(f, "\tPCHITMP = RAM\n");
+        emit(f, "\tMARLO   = MARLO + 1 _S\n");
+        emit(f, "\tMARHI   = MARHI A_PLUS_B_PLUS_C 0\n");
+        emit(f, "\t;   pop PC\n");
+        emit(f, "\tREGA    = RAM\n");
+        emit(f, "\tMARLO   = MARLO + 1 _S\n");
+        emit(f, "\tMARHI   = MARHI A_PLUS_B_PLUS_C 0\n");
+        emit(f, "\t; pop 2 unused PC byes\n");
+        emit(f, "\tMARLO   = MARLO + 2 _S\n");
+        emit(f, "\tMARHI   = MARHI A_PLUS_B_PLUS_C 0\n");
+        emit(f, "\t;   do jump\n");
+        emit(f, "\tPC      = REGA\n");
+    }
 
     /* saved registers
     for (i = sp - 1; i > 0; i--) {
@@ -954,7 +1024,9 @@ int init_cg(void) {
     int i;
     /*  Initialize some values which cannot be statically initialized   */
     /*  because they are stored in the target's arithmetic.             */
-    maxalign = l2zm(8L);
+    maxalign = l2zm(4L);
+    //maxalign = l2zm(8L);
+
     char_bit = l2zm(8L);
     stackalign = l2zm(4);
 
@@ -963,7 +1035,6 @@ int init_cg(void) {
         align[i] = l2zm(malign[i]);
     }
 
-    regnames[0] = "noreg"; // when a register isn't in effect then the reg id is 0 and so it's convenient that there is a distinctive name at that ordinal
     for (i = R_GTMP1; i <= R_GTMP2; i++) {
         regnames[i] = mymalloc(10);
         sprintf(regnames[i], "gtmp%d", i - R_GTMP1 + 1);
@@ -976,7 +1047,7 @@ int init_cg(void) {
         regsize[i] = l2zm(8L);
         regtype[i] = &ldbl;
     }
-    for (i = R_G0; i <= R_GF; i++) {
+    for (i = R_G0; i <= R_G1F; i++) {
         regnames[i] = mymalloc(10);
         sprintf(regnames[i], "gpr%d", i - R_G0);
         regsize[i] = l2zm(4L);
@@ -1039,13 +1110,13 @@ int init_cg(void) {
     regsa[SP_STASH] = 1;
     regscratch[SP_STASH] = 0;
 
-    for (i = R_G0; i <= R_GF; i++)
+    for (i = R_G0; i <= R_G1F; i++)
         regscratch[i] = 0;
+    for (i = R_G10; i <= R_G1F; i++)
+        regscratch[i] = 1;
+
     for (i = R_F0; i <= R_FF; i++)
         regscratch[i] = 0;
-
-    for (i = R_G0; i <= R_GF / 2; i++)
-        regscratch[i] = 1;
     for (i = R_F0; i <= R_FF / 2; i++)
         regscratch[i] = 1;
 
@@ -1086,25 +1157,25 @@ int reg_pair(int r, struct rpair *p)
 
 /* estimate the cost-saving if object o from IC p is placed in
    register r */
+/*
 int cost_savings(struct IC *p, int r, struct obj *o) {
-    return 0;
-    /*
-    int c = p->code;
-    if (o->flags & VKONST) {
-        if (!LOAD_STORE)
-            return 0;
-        if (o == &p->q1 && p->code == ASSIGN && (p->z.flags & DREFOBJ))
-            return 4;
-        else
-            return 2;
-    }
-    if (o->flags & DREFOBJ)
+return 0;
+int c = p->code;
+if (o->flags & VKONST) {
+    if (!LOAD_STORE)
+        return 0;
+    if (o == &p->q1 && p->code == ASSIGN && (p->z.flags & DREFOBJ))
         return 4;
-    if (c == SETRETURN && r == p->z.reg && !(o->flags & DREFOBJ)) return 3;
-    if (c == GETRETURN && r == p->q1.reg && !(o->flags & DREFOBJ)) return 3;
-    return 2;
-     */
+    else
+        return 2;
 }
+if (o->flags & DREFOBJ)
+    return 4;
+if (c == SETRETURN && r == p->z.reg && !(o->flags & DREFOBJ)) return 3;
+if (c == GETRETURN && r == p->q1.reg && !(o->flags & DREFOBJ)) return 3;
+return 2;
+}
+ */
 
 int regok(int r, int t, int mode)
 /*  Returns 0 if register r cannot store variables of   */
@@ -1117,9 +1188,9 @@ int regok(int r, int t, int mode)
     t &= NQ;
     if (ISFLOAT(t) && r >= R_F0 && r <= R_FF)
         return 1;
-    if (t == POINTER && r >= R_G0 && r <= R_GF)
+    if (t == POINTER && r >= R_G0 && r <= R_G1F)
         return 1;
-    if (t >= CHAR && t <= LONG && r >= R_G0 && r <= R_GF)
+    if (t >= CHAR && t <= LONG && r >= R_G0 && r <= R_G1F)
         return 1;
     return 0;
 }
@@ -1173,22 +1244,25 @@ void gen_ds(FILE *f, zmax size, struct Typ *t)
     */
 }
 
-/*
 void gen_align(FILE *f, zmax align)
 //  This function has to make sure the next data is
 //  aligned to multiples of <align> bytes.
 {
-    if (zm2l(align) > 1) emit(f, "\t.align\t2\n");
-}*/
+//JL    if (zm2l(align) > 1) emit(f, "\t.align\t2\n");
+}
 
 
+/* JL: for example in an array initialisation    int arr[] = {1,2,3};
+ * then this function is required to prints a label for that initializer data and gen_dc()
+ * will emit the actual bytes.
+ * presumably the label is referred to be the array var ?
+ * */
 void gen_var_head(FILE *f, struct Var *v)
 //  This function has to create the head of a variable
 //  definition, i.e. the label and information for
 //  linkage etc.
 {
 
-    /*
     emit(f, "\t;JL gen_var_head\n");
 
     int constflag;
@@ -1196,40 +1270,54 @@ void gen_var_head(FILE *f, struct Var *v)
     if (v->clist) constflag = is_const(v->vtyp);
     if (v->storage_class == STATIC) {
         if (ISFUNC(v->vtyp->flags)) return;
-        if (!special_section(f, v)) {
+//        if (!special_section(f, v))
+        {
+            emit(f, "\t;JL static\n");
             if (v->clist && (!constflag || (g_flags[2] & USEDFLAG)) && section != DATA) {
-                emit(f, dataname);
+                emit(f, "\t;JL !const & !data\n");
+                //emit(f, dataname);
                 if (f) section = DATA;
             }
             if (v->clist && constflag && !(g_flags[2] & USEDFLAG) && section != RODATA) {
-                emit(f, rodataname);
+                emit(f, "\t;JL const & !data\n");
+                //emit(f, rodataname);
                 if (f) section = RODATA;
             }
             if (!v->clist && section != BSS) {
-                emit(f, bssname);
+                emit(f, "\t;JL bss\n");
+                //emit(f, bssname);
                 if (f) section = BSS;
             }
         }
         if (v->clist || section == SPECIAL) {
-            gen_align(f, falign(v->vtyp));
+            //gen_align(f, falign(v->vtyp));
+            //emit(f, "EQU %s%ld:\n", labprefix, zm2l(v->offset));
             emit(f, "%s%ld:\n", labprefix, zm2l(v->offset));
-        } else
+        } else {
             emit(f, "\t.lcomm\t%s%ld,", labprefix, zm2l(v->offset));
+            // not impl
+            ierror(1);
+        }
         newobj = 1;
     }
     if (v->storage_class == EXTERN) {
+        emit(f, "\t;JL exterrb\n");
         emit(f, "\t.globl\t%s%s\n", idprefix, v->identifier);
         if (v->flags & (DEFINED | TENTATIVE)) {
-            if (!special_section(f, v)) {
+            // if (!special_section(f, v))
+            {
                 if (v->clist && (!constflag || (g_flags[2] & USEDFLAG)) && section != DATA) {
+                    emit(f, "\t;JL data\n");
                     emit(f, dataname);
                     if (f) section = DATA;
                 }
                 if (v->clist && constflag && !(g_flags[2] & USEDFLAG) && section != RODATA) {
+                    emit(f, "\t;JL rodata\n");
                     emit(f, rodataname);
                     if (f) section = RODATA;
                 }
                 if (!v->clist && section != BSS) {
+                    emit(f, "\t;JL bss\n");
                     emit(f, bssname);
                     if (f) section = BSS;
                 }
@@ -1243,16 +1331,35 @@ void gen_var_head(FILE *f, struct Var *v)
             newobj = 1;
         }
     }
-     */
+//    emit(f, "\t;JL gen_var_head end\n");
 }
 
+/* array init
+13.3.3
+ isstatic(storage_class) != 0
+The variable can be addressed through a numbered label. The label number is
+stored in offset.
+val.vlong+’l’offset
+ */
 void gen_dc(FILE *f, int t, struct const_list *p)
 //  This function has to create static storage
 //  initialized with const-list p.
 {
-    /*
-    emit(f, "\t;JL gen_dc\n");
-    emit(f, "\tdc.%s\t", dt(t & NQ));
+    // NOTE: The label name will already have been written by gen_var_head - here we just write the data
+//    emit(f, "\t;JL gen_dc\n");
+//    emit(f, "\t; dc.%s\n", dt(t & NQ) );
+    int datatypeSize = msizetab[BASETYPE(t)];
+
+    emit(f, "BYTES [");
+    for (int pos = 0; pos < datatypeSize; pos++) {
+        unsigned char c = BYTE(extractByte(&p->val, t, pos));
+        emit(f, "$%02x", c);
+        if (pos + 1 < datatypeSize) {
+            emit(f, ", ");
+        }
+    }
+    emit(f, "]\n");
+/*
     if (!p->tree) {
         if (ISFLOAT(t)) {
             //  auch wieder nicht sehr schoen und IEEE noetig
@@ -1268,9 +1375,9 @@ void gen_dc(FILE *f, int t, struct const_list *p)
     } else {
         emit_obj(f, &p->tree->o, t & NU);
     }
+    */
     emit(f, "\n");
     newobj = 0;
-*/
 }
 
 // JL6502 impl flips the sense of the comparisons - presumably for cpu efficiency
@@ -1313,17 +1420,27 @@ int findBranch(FILE *f, IC *p) {
 /*  v is a pointer to the function.                     */
 /*  offset is the size of the stackframe the function   */
 /*  needs for local variables.                          */
+void dumpreg();
 
 void gen_code(FILE *f, struct IC *p, struct Var *v, zmax offset)
 /*  The main code-generation.                                           */
 {
+
+    //fixme - should this code should step PS over the vars?
+    //fixme - or is code gen using -ve offsets relative to SP value at fn entry?
     int c, i;
     struct IC *m;
     argsize = 0;
     if (DEBUG & 1) printf("gen_code()\n");
-    printf("gen_code() frame=%ld\n", offset);
+
+    printf("gen_code() %s frame=%ld\n", v->identifier, offset);
+    dumpreg();
     fflush(stdout);
 
+    if (strcmp(v->identifier, "main")!=0) {
+        fflush(stdout);
+//        int CORE = *((int*)(0));
+    }
 
     // JL REGSA = LIST OF REG IN USE AT START OF FN - IE ALREADY IN USE
     // JL REGS  = LIST OF REG IN USE DURING FN - SO INIT FROM REGSA
@@ -1338,22 +1455,16 @@ void gen_code(FILE *f, struct IC *p, struct Var *v, zmax offset)
     }
 
     localsize = (zm2l(offset) + 3) / 4 * 4;
-#if FIXED_SP
-    /*FIXME: adjust localsize to get an aligned stack-frame */
-#endif
-
     function_top(f, v, localsize);
 
-#if FIXED_SP
     pushed = 0;
-#endif
 
     for (; p; p = p->next) {
 
         c = p->code;
 
-        printf("\n===================================================================  %s (%d)\n", ename[c], c);
-        dumpIC(stdout, p);
+        emit(f, "\n; ===================================================================  %s (%d)\n", ename[c], c);
+        dumpIC(f, p);
 
         if (c == NOP) {
             p->z.flags = 0;
@@ -1391,6 +1502,7 @@ void gen_code(FILE *f, struct IC *p, struct Var *v, zmax offset)
         }
         if (c == MOVEFROMREG) {
             emit(f, "MOVEFROMREG  REG=%d   Q1=%d  FLAGS=%d\n", p->z.reg, &p->q1, regtype[p->z.reg]->flags);
+            ierror(1);
 
             store_reg(f, p->z.reg, &p->q1, regtype[p->z.reg]->flags);
             continue;
@@ -1398,12 +1510,20 @@ void gen_code(FILE *f, struct IC *p, struct Var *v, zmax offset)
 
         // FIXME ??? NEEDED
         {
-            int t = p->typf;
-            if ((c == ASSIGN || c == PUSH) && ((t & NQ) > POINTER || ((t & NQ) == CHAR && zm2l(p->q2.val.vmax) != 1))) {
-                // what is this
-                emit(f, "ERROR IF (ASSIGN|PUSH) & (TYPE>POINTER|(TYPE=CHAR & VAL %d!=1))\n", zm2l(p->q2.val.vmax));
-                ierror(0);
-            }
+            //int t = p->typf;
+            //if ((c == ASSIGN || c == PUSH) && ((t & NQ) > POINTER || ((t & NQ) == CHAR && zm2l(p->q2.val.vmax) != 1))) {
+            //    // what is this
+            //    emit(f, "ERROR IF (ASSIGN|PUSH) & (TYPE>POINTER|(TYPE=CHAR & VAL %d!=1))\n", zm2l(p->q2.val.vmax));
+            //    ierror(0);
+            // }
+            /*
+             int t = p->typf;
+             if ((c == ASSIGN || c == PUSH) && ((t & NQ) > POINTER || ((t & NQ) == CHAR && zm2l(p->q2.val.vmax) != 1))) {
+                 // what is this
+                 emit(f, "ERROR IF (ASSIGN|PUSH) & (TYPE>POINTER|(TYPE=CHAR & VAL %d!=1))\n", zm2l(p->q2.val.vmax));
+                 ierror(0);
+             }
+             */
         }
 
         if (c == CONVERT) {
@@ -1434,7 +1554,9 @@ void gen_code(FILE *f, struct IC *p, struct Var *v, zmax offset)
             continue;
         }
         if (c == CALL) {
+            //if(argsize<zm2l(m->q2.val.vmax)) argsize=zm2l(m->q2.val.vmax);
             gc_call(f, p);
+            //if (!calc_regs(p, f != 0) && v->fi) v->fi->flags &= ~ALL_REGS;
             continue;
         }
         if (c == PUSH) {
@@ -1502,16 +1624,30 @@ void gen_code(FILE *f, struct IC *p, struct Var *v, zmax offset)
     //emit(f, ";JL# stacksize=%lu%s\n", zum2ul(stack), stack_valid ? "" : "+??");
 }
 
+/*
+Compare and set condition codes. q1,q2(->z).
+
+Compare the operands and set the condition code, so that BEQ, BNE, BLT, BGE, BLE or BGT works as desired.
+
+ If z.flags == 0 (this is always the case unless the backend sets multiple_ccs to 1 and -no-multiple-ccs is not used)
+the condition codes will be evaluated only by an IC immediately following
+the COMPARE, i.e. the next instruction (except possible FREEREGs) will be a conditional branch.
+
+ However, if a target supports several condition code registers and sets the global
+variable multiple_ccs to 1, vbcc might use those registers and perform certain
+optimizations. In this case z may be non-empty and the condition codes have to be stored in z.
+Note that even if multiple_ccs is set, a backend must nevertheless be able to deal with z == 0.
+ */
 void gc_compare(FILE *f, struct IC *p) {
     int t = p->typf;
     emit(f, "; COMPARE START ========\n");
 
-    emit(f, "\t; ORIGINAL ASM: \t");
-    emit(f, "\tcmp.%s\t", dt(t));
-    emit_obj(f, &p->q1, t);
-    emit(f, ",");
-    emit_obj(f, &p->q2, t);
-    emit(f, "\n");
+    emit(f, "\t; ORIGINAL ASM: \tcmp.%s\t", dt(t)); emit_obj(f, &p->q1, t); emit(f, ","); emit_obj(f, &p->q2, t); emit(f, "\n");
+
+    if (!ISINT(t)) {
+        emit(f, "ONLY SUPPORT INT BUT GOT type:%s size:%d\n", dt(t), opsize(p));
+        ierror(1);
+    }
 
     struct obj *q1 = &p->q1;
 
@@ -1561,20 +1697,24 @@ if (!isreg(q1)) fprintf(stderr, "ONLY handliong q1 as reg\n");
     int branchType = findBranch(f, p);
     emit(f, "\t; BRANCH-TYPE-WILL-BE %s\n", ename[branchType]);
 
-    char *q1Regname = regnames[p->q1.reg];
+    int leftReg = R_GTMP1;
+    char *leftRegName = regnames[leftReg];
+
+    load_reg(f, leftReg, &p->q1, q1typ(p));
+    BSET(regs_modified, leftReg); // sets the given bit in an array of bytes
 
     if (isReg(&p->q2)) {
         char *q2Regname = regnames[p->q2.reg];
 
         if (branchType == BEQ || branchType == BNE || branchType == BLT || branchType == BGT) {
             emit(f, "\t; NOTE ! This is a magnitude comparison NOT a subtraction so we start with the top digit\n");
-            emit(f, "\tREGA=[:%s+3]\n", q1Regname);
+            emit(f, "\tREGA=[:%s+3]\n", leftRegName);
             emit(f, "\tNOOP = REGA A_MINUS_B_SIGNEDMAG [:%s+3] _S\n", q2Regname);
-            emit(f, "\tREGA=[:%s+2]\n", q1Regname);
+            emit(f, "\tREGA=[:%s+2]\n", leftRegName);
             emit(f, "\tNOOP = REGA A_MINUS_B           [:%s+2] _EQ_S\n", q2Regname);
-            emit(f, "\tREGA=[:%s+1]\n", q1Regname);
+            emit(f, "\tREGA=[:%s+1]\n", leftRegName);
             emit(f, "\tNOOP = REGA A_MINUS_B           [:%s+1] _EQ_S\n", q2Regname);
-            emit(f, "\tREGA=[:%s+0]\n", q1Regname);
+            emit(f, "\tREGA=[:%s+0]\n", leftRegName);
             emit(f, "\tNOOP = REGA A_MINUS_B           [:%s+0] _EQ_S\n", q2Regname);
             emit(f, "\t; aggregate flags into register\n");
             emit(f, "\t; NOT NEEDED REGA=0\n");
@@ -1582,30 +1722,34 @@ if (!isreg(q1)) fprintf(stderr, "ONLY handliong q1 as reg\n");
             emit(f, "\t; NOT NEEDED REGA = REGA A_OR_B 2 _GT\n");
             emit(f, "\t; NOT NEEDED REGA = REGA A_OR_B 4 _NE\n");
             emit(f, "\t; NOT NEEDED REGA = REGA A_OR_B 8 _EQ\n");
+        } else {
+            ierror(1);
         }
     } else if (isKonst(&p->q2)) {
 
         if (branchType == BEQ || branchType == BNE || branchType == BLT || branchType == BGT) {
             emit(f, "\t; NOTE ! This is a magnitude comparison NOT a subtraction so we start with the top digit\n");
 
-            emit(f, "\tREGA=[:%s+3]\n", q1Regname);
+            emit(f, "\tREGA=[:%s+3]\n", leftRegName);
             emit(f, "\tNOOP = REGA A_MINUS_B_SIGNEDMAG $%02x _S\n", BYTE(extractByte(&p->q2.val, q2typ(p), 3)));
 
-            emit(f, "\tREGA=[:%s+2]\n", q1Regname);
+            emit(f, "\tREGA=[:%s+2]\n", leftRegName);
             emit(f, "\tNOOP = REGA A_MINUS_B           $%02x _EQ_S\n", BYTE(extractByte(&p->q2.val, q2typ(p), 2)));
 
-            emit(f, "\tREGA=[:%s+1]\n", q1Regname);
+            emit(f, "\tREGA=[:%s+1]\n", leftRegName);
             emit(f, "\tNOOP = REGA A_MINUS_B           $%02x _EQ_S\n", BYTE(extractByte(&p->q2.val, q2typ(p), 1)));
 
-            emit(f, "\tREGA=[:%s+0]\n", q1Regname);
+            emit(f, "\tREGA=[:%s+0]\n", leftRegName);
             emit(f, "\tNOOP = REGA A_MINUS_B           $%02x _EQ_S\n", BYTE(extractByte(&p->q2.val, q2typ(p), 0)));
+        } else {
+            ierror(1);
         }
     } else {
         fprintf(stderr, "COMPARE NOT SUPPORTED\n");
         ierror(1);
     }
 
-    // if(multiple_ccs) {
+// if(multiple_ccs) {
 //     emit(f,"!!! %s,",regnames[zreg]);
 // }
 // NOT_USED = A - B
@@ -1623,51 +1767,15 @@ if (!isreg(q1)) fprintf(stderr, "ONLY handliong q1 as reg\n");
                 continue;
             }
             */
-    if (ISINT(t)) {  // should this be ISSCALAR??
-        int offset = 0;
-        /*
-        emit(f,"\t<");
-        emitvalJL(f, &p->q1.val, t, 0);
-        if(p->q1.flags&REG)
-            emit(f,":%s",regnames[p->q1.reg]);
-        emit(f,">\n");
-        emit(f,"\t<");
-        emitvalJL(f, &p->q2.val, t, 0);
-        if(p->q1.flags&REG)
-            emit(f,":%s",regnames[p->q1.reg]);
-        emit(f,">\n");
-
-        int datatypeSize = msizetab[BASETYPE(t)];
-        while (offset < datatypeSize) {
-            emit(f, "\tREGA = ");
-            emit_objJL(f, &p->q1, t, offset);
-            emit(f, "\n");
-
-            emit(f, "\tNOOP = REGA - ");
-            emit_objJL(f, &p->q2, t, offset);
-            emit(f, "\t\n");
-            offset++;
-        }
-        */
-    } else {
-        emit(f, "\t;COMPARE NOT INT NOT IMPL\n");
-        emit_obj(f, &p->q1, t);
-        emit(f, ",");
-        emit_obj(f, &p->q2, t);
-        emit(f, "\n");
-        if (multiple_ccs) {
-            int zreg = zReg(p);
-            save_result(f, p, zreg);
-        }
-    }
 }
 
 void gc_allocreg(FILE *f, struct IC *p) {
-    emit(f, "; ALLOCREG - %s\n", regnames[getReg(&p->q1)]);
+    fprintf(stderr, "; ALLOCREG - %s\n", regnames[getReg(&p->q1)]);
     regs[p->q1.reg] = 1;
 
     // logging into asm
-    emit(f, "\t; allocated: ");
+    /*
+   fprintf(stderr, "\t; allocated: ");
     int allocCount = 0;
     for (int r = 0; r < MAXR; r++) {
         if (regs[r]) {
@@ -1679,14 +1787,16 @@ void gc_allocreg(FILE *f, struct IC *p) {
         emit(f, "none");
     }
     emit(f, "\n");
+     */
 }
 
 void gc_freereg(FILE *f, struct IC *p) {
-    emit(f, "; FREEREG - %s\n", regnames[p->q1.reg]);
+    fprintf(stderr, "; FREEREG - %s\n", regnames[p->q1.reg]);
     regs[p->q1.reg] = 0;
 
     // logging into asm
-    emit(f, "\t; allocated: ");
+    /*
+    fprintf(stderr, "\t; freed: ");
     int allocCount = 0;
     for (int r = 0; r < MAXR; r++) {
         if (regs[r]) {
@@ -1698,6 +1808,7 @@ void gc_freereg(FILE *f, struct IC *p) {
         emit(f, "none");
     }
     emit(f, "\n");
+     */
 }
 
 void gc_setreturn(FILE *f, struct IC *p) {
@@ -1764,18 +1875,128 @@ It is also possible that (typf&NQ) == CHAR but the size is != 1. This is created
  * */
 void gc_assign(FILE *f, struct IC *p) {
     int t = p->typf;
-    emit(f, "; ASSIGN type:%s srcreg:%s -> destreg:%s\n", dt(t),
-         regnames[getReg(&p->q1)],
-         regnames[getReg(&p->z)]
-    );
-    int zreg = getReg(&p->z);
+    emit(f, "; ASSIGN type:%s size:%d\n", dt(t), opsize(p));
 
-    if (isReg(&p->q1) && p->q1.reg == zreg) {
-        // avoid copying reg to self if source is a reg and the same reg is the target
-        return;
+    //puts(*((char*)0));
+
+    if (isReg(&p->z)) {
+        int zreg = getReg(&p->z);
+        emit(f, "\t; assign into a register\n");
+        load_reg(f, zreg, &p->q1, t);
+
+        if (isReg(&p->q1) && p->q1.reg == zreg) {
+            // avoid copying reg to self if source is a reg and the same reg is the target
+            return;
+        }
+
+        BSET(regs_modified, zreg);
+    } else if (isVar(&p->z)) {
+        // eg         DUMP z  < VAR( storage:auto:0(sp) ) >
+        if (ISSCALAR(ztyp(p))) {
+            emit(f, "\t; assign scalar into a var\n");
+
+            emit(f, "; assign step 1 - load to temp reg\n");
+            load_reg(f, R_GTMP2, &p->q1, q1typ(p));
+
+            emit(f, "; assign step 2 - store to var\n");
+
+            // save marlo which hold the SP
+            emit(f, "\t; stash SP\n");
+            emit(f, "\t[:sp_stash]   = MARLO\n");
+            emit(f, "\t[:sp_stash+1] = MARHI\n");
+
+            // adjust the MAR according to the offset
+            int offset = real_offset(&p->z);
+            if (offset != 0) {
+                emit(f, "\t; adjust SP by offset %d to point to var\n", offset);
+                emit(f, "\tMARLO = MARLO + (> %d) _S            ; add lo byte of offset\n", offset);
+                emit(f, "\tMARHI = MARHI A_PLUS_B_PLUS_C (< %d) ; add hi byte of offset plus any carry\n", offset);
+            } else {
+                emit(f, "\t; no need to adjust SP to point to var\n", offset);
+            }
+            // MAR now points at lsb base of value
+
+            fprintf(stderr, "ISSCALAR=%d\n", BASETYPE(ISSCALAR(ztyp(p))));
+            fprintf(stderr, "BTZ=%d\n", BASETYPE(ztyp(p)));
+            fprintf(stderr, "BTQ1=%d\n", BASETYPE(q1typ(p)));
+            int srcSize = msizetab[BASETYPE(q1typ(p))];
+            if (srcSize == 0) {
+                fprintf(stderr, "CANT COPY 0 BYTES\n");
+                ierror(1);
+            }
+
+            emit(f, "\t; copy %d bytes from temp register to memory\n", srcSize);
+            int pos = 0;
+            while (pos < srcSize) {
+                emit(f, "\tREGA  = [:%s+%d]\n", regnames[R_GTMP2], pos);
+                emit(f, "\tRAM   = REGA\n");
+
+                emit(f, "\tMARLO = MARLO + 1 _S\n");
+                emit(f, "\tMARHI = MARHI A_PLUS_B_PLUS_C 0\n");
+
+                pos++;
+            }
+
+            // restore marlo which hold the SP
+            emit(f, "\t; restore SP\n");
+            emit(f, "\tMARLO = [:sp_stash]\n");
+            emit(f, "\tMARHI = [:sp_stash+1]\n");
+            return;
+
+        } else if (ISARRAY(ztyp(p))) {
+
+            // for example an array
+            int bytesToCopy = opsize(p);
+            if (bytesToCopy == 0) {
+                fprintf(stderr, "CANT COPY 0 BYTES\n");
+                ierror(1);
+            }
+
+            char srcLabel[10];
+            sprintf(srcLabel, "%s%ld", labprefix, zm2l(p->q1.v->offset));
+
+            // save mar which hold the SP
+            emit(f, "\t; stash SP\n");
+            emit(f, "\t[:sp_stash]   = MARLO\n");
+            emit(f, "\t[:sp_stash+1] = MARHI\n");
+
+            // adjust the MAR according to the targetOffset
+            int targetOffset = real_offset(&p->z);
+            if (targetOffset != 0) {
+                emit(f, "\t; adjust SP by targetOffset %d to point to var\n", targetOffset);
+                emit(f, "\tMARLO = MARLO + (> %d) _S            ; add lo byte of targetOffset\n", targetOffset);
+                emit(f, "\tMARHI = MARHI A_PLUS_B_PLUS_C (< %d) ; add hi byte of targetOffset plus any carry\n",
+                     targetOffset);
+            } else {
+                emit(f, "\t; no need to adjust SP to point to var\n", targetOffset);
+            }
+            // MAR now points at lsb base of value
+
+            emit(f, "\t; copy %d bytes from label %s to memory SP+%d\n", bytesToCopy, srcLabel, targetOffset);
+            int pos = 0;
+            while (pos < bytesToCopy) {
+                emit(f, "\tREGA  = [:%s+%d]\n", srcLabel, pos);
+                emit(f, "\tRAM   = REGA\n");
+
+                emit(f, "\tMARLO = MARLO + 1 _S\n");
+                emit(f, "\tMARHI = MARHI A_PLUS_B_PLUS_C 0\n");
+
+                pos++;
+            }
+
+            // restore marlo which hold the SP
+            emit(f, "\t; restore SP\n");
+            emit(f, "\tMARLO = [:sp_stash]\n");
+            emit(f, "\tMARHI = [:sp_stash+1]\n");
+            return;
+
+        } else {
+            terror("var Assign with unsupported src\n")
+        }
+
+    } else {
+        terror("Assign with unsupported target\n")
     }
-
-    load_reg(f, zreg, &p->q1, t);
 }
 
 /*
@@ -1822,7 +2043,8 @@ void gc_push(FILE *f, struct IC *p) {
             emit(f, "\tMARHI = MARHI A_MINUS_B_MINUS_C 0\n");
 
             // push so that high order bytes are higher in memory so that we keep to little endian for bytes everywhere
-            emit(f, "\tRAM = [%s+%d]\n", regnames[p->q1.reg], pushSz - pos);
+            emit(f, "\tREGA = [:%s+%d]\n", regnames[p->q1.reg], pushSz - pos);
+            emit(f, "\tRAM = REGA\n");
             pos++;
         }
 
@@ -1896,7 +2118,7 @@ void gc_arithmetic(FILE *f, struct IC *p) {
                 }
             }
              */
-        } if (isReg(&p->q2)) {
+        } else if (isReg(&p->q2)) {
 
             int srcSize = msizetab[q2typ(p)];
             if (srcSize != targSize) {
@@ -1931,7 +2153,7 @@ void gc_arithmetic(FILE *f, struct IC *p) {
             }
              */
         } else {
-            fprintf(stderr, "!!!!! arith src %d not supported\n", p->q2.flags);
+            fprintf(stderr, "!!!!! q2 arith src %d not supported\n", p->q2.flags);
             ierror(1);
         }
 
@@ -1970,11 +2192,15 @@ Get the address of an object. q1->z.
 z is always a pointer and q1 is always an auto variable
  */
 void gc_address(FILE *f, struct IC *p) {
-    emit(f, "; ADDRESS TODO\n");
-    ierror(1);
-    int zreg = zReg(p);
-    load_address(f, zreg, &p->q1, POINTER);
-    save_result(f, p, zreg);
+    emit(f, "; ADDRESS todo\n");
+    if (isReg(&p->z)) {
+        int zreg = zReg(p);
+        load_address(f, zreg, &p->q1, POINTER);
+        //save_result(f, p, zreg);
+        return;
+    }
+
+    terror("ADDRESS target type not handled\n");
 }
 
 /*
@@ -2007,13 +2233,13 @@ void gc_convert(FILE *f, struct IC *p) {
  *
  * */
 void gc_call(FILE *f, struct IC *p) {
+    emit(f, "; ---------------------------------\n");
     int t = p->typf;
-
     int bytesToRollback = pushedargsize(p);
 
     int reg;
     if ((p->q1.flags & (VAR | DREFOBJ)) == VAR && p->q1.v->fi && p->q1.v->fi->inline_asm) {
-        char* inlineAsm = p->q1.v->fi->inline_asm;
+        char *inlineAsm = p->q1.v->fi->inline_asm;
         emit(f, "; CALL INLINE ASM : %s(..)\n", p->q1.v->identifier);
         printf("ASM: %s\n", inlineAsm); // the emit function doesn't echo the ASM so we'll fake it with a log line here
         emit_inline_asm(f, inlineAsm);
@@ -2049,27 +2275,36 @@ void gc_call(FILE *f, struct IC *p) {
         emit(f, "\tPCHITMP = (<:%s%s)\n", idprefix, id);
         emit(f, "\tPC      = (>:%s%s)\n", idprefix, id);
 
+        emit(f, "; --------------\n");
         emit(f, "\t; return location %s\n", returnLabel);
         emit(f, "%s:\n", returnLabel);
 
         emit(f, "\t; rewinding pushed args %d\n", bytesToRollback);
         emit(f, "\tMARLO = MARLO + %d _S\n", bytesToRollback);
         emit(f, "\tMARHI = MARHI A_PLUS_B_PLUS_C 0\n");
-        emit(f, "\t; call unwound and complete\n", bytesToRollback);
 
-//        TODO - unwind any pushed args to the function just returned from
- //           IE the size in PRIC2:  call function M0+_sub(sub) size=24 => sub
+        //  TODO - unwind any pushed args to the function just returned from
+        //  IE the size in PRIC2:  call function M0+_sub(sub) size=24 => sub
 
-        // FIXME - something to do with caller saved regs???
+        // FIXME - something to do with caller saved regs???  - copied from some elses impl
+
+        /*
         if ((p->q1.flags & (VAR | DREFOBJ)) == VAR && p->q1.v->fi && (p->q1.v->fi->flags & ALL_REGS)) {
             bvunite(regs_modified, p->q1.v->fi->regs_modified, RSIZE);
         } else {
             int i;
             for (i = 1; i <= MAXR; i++) {
-                if (regscratch[i]) BSET(regs_modified, i);
+                if (regscratch[i]) {
+                    BSET(regs_modified, i);
+                }
             }
         }
+         */
     }
+
+
+    emit(f, "\t; call unwound and complete\n", bytesToRollback);
+    emit(f, "; ---------------------------------\n");
 }
 
 /*
@@ -2142,7 +2377,7 @@ void cleanup_cg(FILE *f) {
     // don't include the "noreg" as we don't want it used
     for (int i = 0; i <= MAXR; i++) {
         if (i != R_NONE) {
-            emit(f, "\t%-10s:\tRESERVE %d\n", regnames[i] , regsize[i]);
+            emit(f, "\t%-10s:\tRESERVE %d\n", regnames[i], regsize[i]);
         }
     }
     emit(f, "END\n");
@@ -2153,73 +2388,82 @@ void cleanup_db(FILE *f) {
 }
 
 void dumpObj(FILE *f, char *label, struct obj *o, int otyp, struct IC *p) {
-    printf("\tDUMP %s <", label);
-    fflush(stdout);
-//    printf("'%s' ", ((o==NULL)? "ONULL": ((o->v==NULL)?"VNULL": (o->v->identifier)==NULL?"INULL":o->v->identifier)));
+    fflush(f);
+    emit(f, "\t;   DUMP  < [%s]", label);
+
     if (o->flags == 0) {
-        printf(" FLAG:%d ", o->flags);
+        emit(f, " FLAG:%d ", o->flags);
     }
 
     if (o->flags == KONST) {  // const val
-        printf(" KONST:");
-        emitval(stdout, &o->val, otyp);
+        emit(f, " KONST:");
+        emitval(f, &o->val, otyp);
     }
     if (o->flags == (KONST | DREFOBJ)) {  // const pointer
-        printf(" KONST|DREFOBJ:");
-        emitval(stdout, &o->val, otyp);
+        emit(f, " KONST|DREFOBJ:");
+        emitval(f, &o->val, otyp);
     }
     if (o->flags & REG) {
-        printf(" REG(%s)", regnames[o->reg]);
+        emit(f, " REG(%s)", regnames[o->reg]);
     }
     if (o->flags & DREFOBJ) {
-        printf(" DREFOBJ");
+        emit(f, " DREFOBJ");
     }
     if (o->flags & VARADR) {
-        printf(" VARADR");
+        emit(f, " VARADR");
     }
     if (o->flags & VAR) {
-        printf(" VAR(");
+        emit(f, " VAR(");
 
-        printf(" storage:");
+        emit(f, " storage:");
         if (o->v->storage_class == AUTO) {
-            printf("auto");
-            printf(":%ld(%s)", real_offset(o), regnames[SP]);
+            emit(f,"auto");
+            emit(f,":%ld(%s)", real_offset(o), regnames[SP]);
         } else if (o->v->storage_class == REGISTER) {
-            printf("register");
-            printf(":%ld(%s)", real_offset(o), regnames[SP]);
+            emit(f,"register");
+            emit(f,":%ld(%s)", real_offset(o), regnames[SP]);
         } else {
             // add sign
             if (!zmeqto(l2zm(0L), o->val.vmax)) {
-                emitval(stdout, &o->val, LONG);
-                printf("+");
+                emitval(f, &o->val, LONG);
+                emit(f,"+");
             }
             if (o->v->storage_class == STATIC) {
-                printf("static:%s%ld", labprefix, zm2l(o->v->offset));
+                emit(f,"static:%s%ld", labprefix, zm2l(o->v->offset));
             } else if (o->v->storage_class == EXTERN) {
-                printf("extern:%s%ld", labprefix, zm2l(o->v->offset));
+                emit(f,"extern:%s%ld", labprefix, zm2l(o->v->offset));
             } else {
-                printf("nonstatic:%s%s", idprefix, o->v->identifier);
+                emit(f,"nonstatic:%s%s", idprefix, o->v->identifier);
             }
         }
-        printf(" )");
+        emit(f," )");
     }
-    printf(" >");
-    fflush(stdout);
+    //fprintf(f, " >");
+    fflush(f);
     char *id = NULL;
-    if (p->code != ALLOCREG && p->code != FREEREG)
-      //if (isVar( o ))
-      if (o == &p->q1) // identifier is always on q1
-        if (o->flags != KONST && o->flags != 0) // simple konst passed to a function as an arg doesn't have a name
-            if (o->v != NULL)
-                if (o->v->identifier != NULL)
-                    id = o->v->identifier;
+    if (p->code != ALLOCREG && p->code != FREEREG) {
+        if (involvesVar(o)) {
+            //if (o == &p->q1) // identifier is always on q1
+            if (o->flags != KONST && o->flags != 0) { // simple konst passed to a function as an arg doesn't have a name
+                if (o->v != NULL) {
+                    if (o->v->identifier != NULL) {
+                        id = o->v->identifier;
+                    }
+                }
+            }
+        }
+    }
+
 
 //    char* id = ((o==NULL)? "ONULL": ((o->v==NULL)?"VNULL": (o->v->identifier)==NULL?"INULL":o->v->identifier));
-    if (id != NULL) printf(" '%s' ", id);
+    if (id != NULL) emit(f," '%s' ", id);
     fflush(stdout);
 }
 
 void dumpIC(FILE *f, struct IC *p) {
+    fflush(f);
+    fflush(stdout);
+
     int c = p->code;
 
     if (p->file) emit(f, "; location %s:%d\n", p->file, p->line);
@@ -2228,15 +2472,14 @@ void dumpIC(FILE *f, struct IC *p) {
         return;
     }
 
-    printf("PRIC2: ");
-    pric2(stdout, p);
+    fprintf(stdout,"\t; PRIC2: "); pric2(stdout, p);
+    emit(stdout, "\n");
 
-    emit(f, "\tDUMP code = %s    typf=%s  typf2=%s   ztyp=%s  q1typ=%s  q2typ=%s", ename[p->code],
+    emit(f, "\t; DUMP code = %s    typf=%s  typf2=%s   ztyp=%s  q1typ=%s  q2typ=%s\n", ename[p->code],
          dt(p->typf), dt(p->typf2),
          dt(ztyp(p)), dt(q1typ(p)), dt(q2typ(p)));
-    emit(f, "\n");
 
-    dumpObj(f, "z ", &p->z, ztyp(p), p);
+    dumpObj(f, "z", &p->z, ztyp(p), p);
     emit(f, "\n");
 
     dumpObj(f, "q1", &p->q1, q1typ(p), p);
@@ -2245,7 +2488,7 @@ void dumpIC(FILE *f, struct IC *p) {
     dumpObj(f, "q2", &p->q2, q2typ(p), p);
     emit(f, "\n");
 
-    printf("-----\n");
+    emit(f, "; -----\n");
 }
 
 int reg_parm(struct reg_handle *m, struct Typ *t, int vararg, struct Typ *d) {
@@ -2269,4 +2512,38 @@ int reg_parm(struct reg_handle *m, struct Typ *t, int vararg, struct Typ *d) {
 */
     }
     return 0;
+}
+
+void dumpreg() {
+    //printf("DUMPREG - DISABLED\n");
+    //return;
+
+    printf("DUMPREG..\n");
+    printf("%10s %7s %7s %7s %7s\n", "name","regsa", "regused", "regs", "mod'd");
+    for (int c = 1; c <= MAXR; c++) {
+        if (regsa[c] || regused[c] || regs[c] || BTST(regs_modified,c)) {
+            printf("%10s ", regnames[c]);
+            if (regsa[c]) {
+                printf("%7s ", "regsa");
+            } else {
+                printf("%7s ", "");
+            }
+            if (regused[c]) {
+                printf("%7s", "used" );
+            } else {
+                printf("%7s", "" );
+            }
+            if (regs[c]) {
+                printf("%7s", "regs" );
+            } else {
+                printf("%7s", "" );
+            }
+            if (BTST(regs_modified,c)) {
+                printf("%7s", "mod" );
+            } else {
+                printf("%7s", "" );
+            }
+            printf("\n");
+        }
+    }
 }

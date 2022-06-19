@@ -1,6 +1,8 @@
 
 /*  Code generator for Intel 80386 or higher.                   */
 
+void dumpreg();
+
 #include "supp.h"
 #include "vbc.h" /* nicht schoen, aber ... */
 
@@ -978,11 +980,17 @@ void gen_dc(FILE *f, int t, struct const_list *p)
 /*  offset is the size of the stackframe the function   */
 /*  needs for local variables.                          */
 void gen_code(FILE *f, struct IC *p, struct Var *v, zmax offset) {
-  int c, t, lastcomp = 0, reg;
+    printf("gen_code() %s frame=%ld\n", v->identifier, offset);
+    fflush(stdout);
+    dumpreg();
+
+    int c, t, lastcomp = 0, reg;
   struct IC *m;
   if (DEBUG & 1) printf("gen_code()\n");
+
   for (c = 1; c <= 15; c++) regs[c] = regsa[c];
   regs[16] = 0;
+
   for (c = 1; c <= MAXR; c++) {
     if (regsa[c] || regused[c]) {
       BSET(regs_modified, c);
@@ -1004,7 +1012,8 @@ void gen_code(FILE *f, struct IC *p, struct Var *v, zmax offset) {
   stackoffset = notpopped = dontpop = 0;
   finit();
   for (; p; pr(f, p), p = p->next) {
-    c = p->code;
+
+      c = p->code;
     t = p->typf;
     if (debug_info)
       dwarf2_line_info(f, p);
@@ -2395,4 +2404,33 @@ void conv_typ(struct Typ *p)
     }
     p = p->next;
   }
+}
+void dumpreg() {
+    printf("REGDUMP...\n");
+    for (int c = 1; c <= MAXR; c++) {
+        if (regsa[c] || regused[c] || regs[c] || regs_modified[c]) {
+            printf("%10s ", regnames[c]);
+            if (regsa[c]) {
+                printf("%7s ", "regsa");
+            } else {
+                printf("%7s ", "");
+            }
+            if (regused[c]) {
+                printf("%7s", "used" );
+            } else {
+                printf("%7s", "" );
+            }
+            if (regs[c]) {
+                printf("%7s", "regs" );
+            } else {
+                printf("%7s", "" );
+            }
+            if (regs_modified[c]) {
+                printf("%7s", "mod" );
+            } else {
+                printf("%7s", "" );
+            }
+            printf("\n");
+        }
+    }
 }
