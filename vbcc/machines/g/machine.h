@@ -42,6 +42,8 @@ enum {
     R_NONE = 0,
     R_GTMP1, R_GTMP2,
     R_FTMP1, R_FTMP2,
+    R_HALT1, R_HALT2, R_HALT3,
+    R_GRET,
     R_G0, R_G1, R_G2, R_G3, R_G4, R_G5, R_G6, R_G7, R_G8, R_G9, R_GA, R_GB, R_GC, R_GD, R_GE, R_GF,
     R_G10, R_G11, R_G12, R_G13, R_G14, R_G15, R_G16, R_G17, R_G18, R_G19, R_G1A, R_G1B, R_G1C, R_G1D, R_G1E, R_G1F,
     R_F0, R_F1, R_F2, R_F3, R_F4, R_F5, R_F6, R_F7, R_F8, R_F9, R_FA, R_FB, R_FC, R_FD, R_FE, R_FF,

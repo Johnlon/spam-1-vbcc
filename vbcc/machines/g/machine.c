@@ -112,6 +112,10 @@ int involvesVar(struct obj *x) {
     return (x->flags & VAR);
 }
 
+int isSpecialPurposeHalt(int r) {
+ return r >= R_HALT1 && r <= R_HALT2;
+}
+
 //#define involvesreg(x) ((p->x.flags&(REG))==REG)
 
 // is a KONST but not DEREFOBJ
@@ -341,9 +345,9 @@ When inside the function (ie the callee) ....
    | return-address [size=2]                      | Set by caller
    ------------------------------------------------
    | caller-save registers [size=rsavesize]       | Set by caller - nb: x86 has callee save the FP of the caller
-   ------- FP POINTS HERE -------------------------
-   | local variables [size=localsize]             | Callee moves the SP after it's local vars
-   ------- SP POINTS HERE -------------------------
+   ------- FP POINTS HERE ------------------------- << I DONT USE AN FP, I JUST REWIND - BECAUSE I USE FIXED_SP
+   | local variables [size=localsize]             | Callee moves the SP to just after it's local vars
+   ------- SP POINTS HERE ------------------------- << SP IS FIXED HERE AT START OF FN AND ALL STACK REFS ARE RELATIVE TO FIXED SP
    | arguments to called functions [size=argsize] | Args to any functions called by this one
    ------------------------------------------------
 
@@ -379,12 +383,12 @@ static long real_offset(struct obj *o) {
         //off = localsize + rsavesize + 4 - off - zm2l(maxalign);
 //        off = localsize + rsavesize - off - zm2l(maxalign);
 
-            off = - off + localsize;
+        off = -off + localsize + rsavesize;
 //        fprintf(stderr, "real offset -ve off now %ld  localsise %ld rsavesize %ld maxalign %ld\n", off, localsize, rsavesize, maxalign);
     }
 
     off += argsize;
- //       fprintf(stderr, "real offset plus argsize  %ld  off now %ld\n", argsize, off);
+    //       fprintf(stderr, "real offset plus argsize  %ld  off now %ld\n", argsize, off);
     off += zm2l(o->val.vmax);
 
     // fprintf(stderr, "real offset plus vmax  %ld  off now %ld\n", o->val.vmax, off);
@@ -932,10 +936,17 @@ static int exists_freereg(struct IC *p, int reg) {
 }
 
 
+// dont preserve regsa reg's because they were already in use before we entered the current fn and we've not used them so some call stack parent will have preserved them if needed.
+// dont preserve scratch reg's.
+// only consider preserving regused ones that we'll use.
+// don't preserve the halt regs as these have a special purpose and so never need preserving.
+static int shouldPreserve(int i) { return (i != R_GRET) && !regsa[i] && !regscratch[i] && regused[i] && !isSpecialPurposeHalt(i); }
+
 /* generates the function entry code */
 static void function_top(FILE *f, struct Var *v, long offset) {
-    rsavesize = 0;
-    if (firstFn && strcmp(v->identifier, "main") != 0) {
+    int isMain = strcmp(v->identifier, "main") == 0;
+
+    if (firstFn && !isMain) {
         emit(f, "; jump to _main\n");
         emit(f, "PCHITMP   = < :_main\n");
         emit(f, "PC        = > :_main\n");
@@ -943,11 +954,6 @@ static void function_top(FILE *f, struct Var *v, long offset) {
     firstFn = 0;
 
 
-/*    if (!special_section(f, v) && section != CODE) {
-        emit(f, codename);
-        if (f) section = CODE;
-    }
-    */
     if (v->storage_class == EXTERN) {
         if ((v->flags & (INLINEFUNC | INLINEEXT)) != INLINEFUNC)
             //         emit(f, "\t.global\t%s%s\n", idprefix, v->identifier);
@@ -955,29 +961,81 @@ static void function_top(FILE *f, struct Var *v, long offset) {
     } else
         emit(f, "%s%ld:\n", labprefix, zm2l(v->offset));
 
-    if (strcmp(v->identifier, "main") == 0) {
+    if (isMain) {
         emit(f, "; _main routine\n");
         // stack starts at top of 64k memory
+        emit(f, "; initialise registers\n");
         emit(f, "[:sp]   = $ff\n");
         emit(f, "[:sp+1] = $ff\n");
         emit(f, "MARLO   = [:sp]\n");
         emit(f, "MARHI   = [:sp+1]\n");
     }
 
+    // save any registers that this function trashes
+    rsavesize = 0;
+    for (int i = 1; i < MAXR; i++) {
+        if (shouldPreserve(i)) {
+            //if (regused[i] && !regscratch[i]) {
+            emit(f, "\t; saving register %s\n", regnames[i]);
+            int pushSz = regsize[i];
+            if (pushSz != 4) {
+                fprintf(stderr, "JL NOTE - For now only pushing 4 byte regs - easier to understand stack\n");
+                ierror(1);
+            }
+            int pos = 0;
+            while (pos < pushSz) {
+                emit(f, "\tMARLO = MARLO - 1 _S\n");
+                emit(f, "\tMARHI = MARHI A_MINUS_B_MINUS_C 0\n");
+
+                emit(f, "\tREGA  = [:%s+%d]\n", regnames[i], pushSz - pos - 1);
+                emit(f, "\tRAM   = REGA\n");
+                pos++;
+            }
+
+            rsavesize += pushSz;
+        }
+    }
+
+
     if (offset) {
         emit(f, "\t; adjust SP to skip over the local variable stack by offset %d\n", offset);
         emit(f, "\tMARLO = MARLO - (> %d) _S            ; sub lo byte of offset\n", offset);
         emit(f, "\tMARHI = MARHI A_MINUS_B_MINUS_C (< %d) ; sub hi byte of offset plus any carry\n", offset);
     }
+    emit(f, "\t; ------ caller stack frame complete \n");
 }
 
 /* generates the function exit code */
 static void function_bottom(FILE *f, struct Var *v, long offset) {
-    emit(f, "; FUNCTION BOTTOM\n");
+    emit(f, "; function bottom logic\n");
     if (offset) {
-        emit(f, "\t; adjust SP to rewind over the variable stack by offset %d\n", offset);
-        emit(f, "\tMARLO = MARLO + (> %d) _S            ; add lo byte of offset\n", offset);
-        emit(f, "\tMARHI = MARHI A_PLUS_B_PLUS_C (< %d) ; add hi byte of offset plus any carry\n", offset);
+        emit(f, "\t; rewind stack over local variable : bytes %d\n", offset);
+        emit(f, "\tMARLO = MARLO + (> %d) _S            \n", offset);
+        emit(f, "\tMARHI = MARHI A_PLUS_B_PLUS_C (< %d) \n", offset);
+    }
+
+    if (rsavesize) {
+        emit(f, "\t; rewind stack over saved register : bytes %d\n", rsavesize);
+        // go in reverse
+        for (int i = MAXR-1; i > 0; i--) {
+            if (shouldPreserve(i)) {
+                emit(f, "\t; restoring register %s\n", regnames[i]);
+                int popSz = regsize[i];
+                if (popSz != 4) {
+                    fprintf(stderr, "JL NOTE - For now only popping 4 byte regs - easier to understand stack\n");
+                    ierror(1);
+                }
+                int pos = 0;
+                while (pos < popSz) {
+                    emit(f, "\tREGA = RAM\n");
+                    emit(f, "\t[:%s+%d] = REGA\n", regnames[i], pos);
+
+                    emit(f, "\tMARLO = MARLO + 1 _S\n");
+                    emit(f, "\tMARHI = MARHI A_PLUS_B_PLUS_C 0\n");
+                    pos++;
+                }
+            }
+        }
     }
 
 
@@ -988,30 +1046,20 @@ static void function_bottom(FILE *f, struct Var *v, long offset) {
     } else {
         emit(f, "\t; do return from function\n");
 
-        emit(f, "\t;   pop PCHITMP\n");
+        emit(f, "\t; pop PCHITMP\n");
         emit(f, "\tPCHITMP = RAM\n");
         emit(f, "\tMARLO   = MARLO + 1 _S\n");
         emit(f, "\tMARHI   = MARHI A_PLUS_B_PLUS_C 0\n");
-        emit(f, "\t;   pop PC\n");
+        emit(f, "\t; pop PC\n");
         emit(f, "\tREGA    = RAM\n");
         emit(f, "\tMARLO   = MARLO + 1 _S\n");
         emit(f, "\tMARHI   = MARHI A_PLUS_B_PLUS_C 0\n");
         emit(f, "\t; pop 2 unused PC byes\n");
         emit(f, "\tMARLO   = MARLO + 2 _S\n");
         emit(f, "\tMARHI   = MARHI A_PLUS_B_PLUS_C 0\n");
-        emit(f, "\t;   do jump\n");
+        emit(f, "\t; do jump\n");
         emit(f, "\tPC      = REGA\n");
     }
-
-    /* saved registers
-    for (i = sp - 1; i > 0; i--) {
-        if (regused[i] && !regscratch[i]) {
-            emit(f, "\tpopl\t%s\n", regnames[i]);
-        }
-    }
-     */
-
-    emit(f, "\t; returned\n");
 }
 
 /****************************************/
@@ -1046,6 +1094,15 @@ int init_cg(void) {
         sprintf(regnames[i], "ftmp%d", i - R_FTMP1 + 1);
         regsize[i] = l2zm(8L);
         regtype[i] = &ldbl;
+    }
+    for (i = R_HALT1; i <= R_HALT3; i++) {
+        regnames[i] = mymalloc(10);
+        sprintf(regnames[i], "ghalt%d", i - R_HALT1 + 1);
+        regsize[i] = l2zm(4L);
+        regtype[i] = &llong;
+
+        regsa[i] = 1;
+        regscratch[i] = 1;
     }
     for (i = R_G0; i <= R_G1F; i++) {
         regnames[i] = mymalloc(10);
@@ -1103,12 +1160,22 @@ int init_cg(void) {
     /*  Mark them as in use.                             */
     regsa[R_GTMP1] = regsa[R_GTMP2] = 1;
     regscratch[R_GTMP1] = regscratch[R_GTMP2] = 0;
+
     regsa[R_FTMP1] = regsa[R_FTMP2] = 1;
     regscratch[R_FTMP1] = regscratch[R_FTMP2] = 0;
+
     regsa[SP] = 1;
     regscratch[SP] = 0;
+
     regsa[SP_STASH] = 1;
     regscratch[SP_STASH] = 0;
+
+    regnames[R_GRET] = mymalloc(10);
+    sprintf(regnames[R_GRET], "greturn");
+    regsize[R_GRET] = l2zm(4L);
+    regtype[R_GRET] = &llong;
+    regsa[R_GRET] = 1;
+    regscratch[R_GRET] = 0;
 
     for (i = R_G0; i <= R_G1F; i++)
         regscratch[i] = 0;
@@ -1140,8 +1207,7 @@ int freturn(struct Typ *t)
     if (ISSTRUCT(t->flags) || ISUNION(t->flags))
         return 0;
     if (zmleq(szof(t), l2zm(4L)))
-        //return R_G0 + 3;
-        return R_G0;
+        return R_GRET;
     else
         return 0;
 }
@@ -1191,6 +1257,8 @@ int regok(int r, int t, int mode)
     if (t == POINTER && r >= R_G0 && r <= R_G1F)
         return 1;
     if (t >= CHAR && t <= LONG && r >= R_G0 && r <= R_G1F)
+        return 1;
+    if (t >= CHAR && t <= LONG && r >= R_HALT1 && r <= R_HALT3)
         return 1;
     return 0;
 }
@@ -1425,6 +1493,7 @@ void dumpreg();
 void gen_code(FILE *f, struct IC *p, struct Var *v, zmax offset)
 /*  The main code-generation.                                           */
 {
+    emit(f, ";================================================================================= FUNCTION TOP %s\n", v->identifier);
 
     //fixme - should this code should step PS over the vars?
     //fixme - or is code gen using -ve offsets relative to SP value at fn entry?
@@ -1434,10 +1503,9 @@ void gen_code(FILE *f, struct IC *p, struct Var *v, zmax offset)
     if (DEBUG & 1) printf("gen_code()\n");
 
     printf("gen_code() %s frame=%ld\n", v->identifier, offset);
-    dumpreg();
     fflush(stdout);
 
-    if (strcmp(v->identifier, "main")!=0) {
+    if (strcmp(v->identifier, "main") != 0) {
         fflush(stdout);
 //        int CORE = *((int*)(0));
     }
@@ -1463,7 +1531,7 @@ void gen_code(FILE *f, struct IC *p, struct Var *v, zmax offset)
 
         c = p->code;
 
-        emit(f, "\n; ===================================================================  %s (%d)\n", ename[c], c);
+        emit(f, "\n; ------------------------------------------------------------------------  %s (%d)\n", ename[c], c);
         dumpIC(f, p);
 
         if (c == NOP) {
@@ -1493,7 +1561,14 @@ void gen_code(FILE *f, struct IC *p, struct Var *v, zmax offset)
             continue;
         }
         if (c == MOVETOREG) {
-            ierror(1);
+            // MOVETOREG is used for register preservation
+
+            if (isSpecialPurposeHalt(p->q1.reg)) {
+                // MOVETOREG is generated for the halt registers because they are marked as regsa=1 AND also used as register parameters to the halt
+                // functions so vbcc thinks it needs to preserve them on the way into the function
+                emit(f, "; MOVETOREG  ignored for special purpose register %s\n", regnames[p->q1.reg]);
+                continue;
+            }
             /*
             emit(f, "MOVETOREG  REG=%d   Q1=%d  FLAGS=%d\n", p->z.reg, &p->q1, regtype[p->z.reg]->flags);
             load_reg(f, p->z.reg, &p->q1, regtype[p->z.reg]->flags);
@@ -1501,8 +1576,17 @@ void gen_code(FILE *f, struct IC *p, struct Var *v, zmax offset)
             continue;
         }
         if (c == MOVEFROMREG) {
-            emit(f, "MOVEFROMREG  REG=%d   Q1=%d  FLAGS=%d\n", p->z.reg, &p->q1, regtype[p->z.reg]->flags);
+            // MOVEFROMREG is used for register preservation
+
+            if (isSpecialPurposeHalt(p->q1.reg)) {
+                // MOVEFROMREG is generated for the halt registers because they are marked as regsa=1 AND also used as register parameters to the halt
+                // functions so vbcc thinks it needs to preserve them on the way into the function
+               emit(f, "; MOVEFROMREG  ignored for special purpose register %s\n", regnames[p->q1.reg]);
+               continue;
+            }
+            emit(f, "MOVEFROMREG  NOT SUPPORTED\n");
             ierror(1);
+            emit(f, "MOVEFROMREG  REG=%d   Q1=%d  FLAGS=%d\n", p->z.reg, &p->q1, regtype[p->z.reg]->flags);
 
             store_reg(f, p->z.reg, &p->q1, regtype[p->z.reg]->flags);
             continue;
@@ -1615,6 +1699,7 @@ void gen_code(FILE *f, struct IC *p, struct Var *v, zmax offset)
         ierror(0);
     }
 
+    emit(f, "\n; ------------------------------------------------------------------------  bottom\n");
     function_bottom(f, v, localsize);
     if (stack_valid) {
         if (!v->fi) v->fi = new_fi();
@@ -1622,6 +1707,10 @@ void gen_code(FILE *f, struct IC *p, struct Var *v, zmax offset)
         v->fi->stack1 = stack;
     }
     //emit(f, ";JL# stacksize=%lu%s\n", zum2ul(stack), stack_valid ? "" : "+??");
+
+    dumpreg();
+
+    emit(f, ";================================================================================= FUNCTION BOT %s\n", v->identifier);
 }
 
 /*
@@ -1642,7 +1731,11 @@ void gc_compare(FILE *f, struct IC *p) {
     int t = p->typf;
     emit(f, "; COMPARE START ========\n");
 
-    emit(f, "\t; ORIGINAL ASM: \tcmp.%s\t", dt(t)); emit_obj(f, &p->q1, t); emit(f, ","); emit_obj(f, &p->q2, t); emit(f, "\n");
+    emit(f, "\t; ORIGINAL ASM: \tcmp.%s\t", dt(t));
+    emit_obj(f, &p->q1, t);
+    emit(f, ",");
+    emit_obj(f, &p->q2, t);
+    emit(f, "\n");
 
     if (!ISINT(t)) {
         emit(f, "ONLY SUPPORT INT BUT GOT type:%s size:%d\n", dt(t), opsize(p));
@@ -2043,7 +2136,7 @@ void gc_push(FILE *f, struct IC *p) {
             emit(f, "\tMARHI = MARHI A_MINUS_B_MINUS_C 0\n");
 
             // push so that high order bytes are higher in memory so that we keep to little endian for bytes everywhere
-            emit(f, "\tREGA = [:%s+%d]\n", regnames[p->q1.reg], pushSz - pos);
+            emit(f, "\tREGA = [:%s+%d]\n", regnames[p->q1.reg], pushSz - pos - 1);
             emit(f, "\tRAM = REGA\n");
             pos++;
         }
@@ -2417,26 +2510,26 @@ void dumpObj(FILE *f, char *label, struct obj *o, int otyp, struct IC *p) {
 
         emit(f, " storage:");
         if (o->v->storage_class == AUTO) {
-            emit(f,"auto");
-            emit(f,":%ld(%s)", real_offset(o), regnames[SP]);
+            emit(f, "auto");
+            emit(f, ":%ld(%s)", real_offset(o), regnames[SP]);
         } else if (o->v->storage_class == REGISTER) {
-            emit(f,"register");
-            emit(f,":%ld(%s)", real_offset(o), regnames[SP]);
+            emit(f, "register");
+            emit(f, ":%ld(%s)", real_offset(o), regnames[SP]);
         } else {
             // add sign
             if (!zmeqto(l2zm(0L), o->val.vmax)) {
                 emitval(f, &o->val, LONG);
-                emit(f,"+");
+                emit(f, "+");
             }
             if (o->v->storage_class == STATIC) {
-                emit(f,"static:%s%ld", labprefix, zm2l(o->v->offset));
+                emit(f, "static:%s%ld", labprefix, zm2l(o->v->offset));
             } else if (o->v->storage_class == EXTERN) {
-                emit(f,"extern:%s%ld", labprefix, zm2l(o->v->offset));
+                emit(f, "extern:%s%ld", labprefix, zm2l(o->v->offset));
             } else {
-                emit(f,"nonstatic:%s%s", idprefix, o->v->identifier);
+                emit(f, "nonstatic:%s%s", idprefix, o->v->identifier);
             }
         }
-        emit(f," )");
+        emit(f, " )");
     }
     //fprintf(f, " >");
     fflush(f);
@@ -2456,7 +2549,7 @@ void dumpObj(FILE *f, char *label, struct obj *o, int otyp, struct IC *p) {
 
 
 //    char* id = ((o==NULL)? "ONULL": ((o->v==NULL)?"VNULL": (o->v->identifier)==NULL?"INULL":o->v->identifier));
-    if (id != NULL) emit(f," '%s' ", id);
+    if (id != NULL) emit(f, " '%s' ", id);
     fflush(stdout);
 }
 
@@ -2472,7 +2565,8 @@ void dumpIC(FILE *f, struct IC *p) {
         return;
     }
 
-    fprintf(stdout,"\t; PRIC2: "); pric2(stdout, p);
+    fprintf(stdout, "\t; PRIC2: ");
+    pric2(stdout, p);
     emit(stdout, "\n");
 
     emit(f, "\t; DUMP code = %s    typf=%s  typf2=%s   ztyp=%s  q1typ=%s  q2typ=%s\n", ename[p->code],
@@ -2519,29 +2613,34 @@ void dumpreg() {
     //return;
 
     printf("DUMPREG..\n");
-    printf("%10s %7s %7s %7s %7s\n", "name","regsa", "regused", "regs", "mod'd");
+    printf("%-10s %-8s %-8s %-8s %-8s %-8s\n", "name", "regsa", "regused", "regs", "mod'd", "scratch");
     for (int c = 1; c <= MAXR; c++) {
-        if (regsa[c] || regused[c] || regs[c] || BTST(regs_modified,c)) {
-            printf("%10s ", regnames[c]);
+        if (regsa[c] || regused[c] || regs[c] || BTST(regs_modified, c)) {
+            printf("%-10s ", regnames[c]);
             if (regsa[c]) {
-                printf("%7s ", "regsa");
+                printf("%-8s ", "regsa");
             } else {
-                printf("%7s ", "");
+                printf("%-8s ", "-");
             }
             if (regused[c]) {
-                printf("%7s", "used" );
+                printf("%-8s ", "used");
             } else {
-                printf("%7s", "" );
+                printf("%-8s ", "-");
             }
             if (regs[c]) {
-                printf("%7s", "regs" );
+                printf("%-8s ", "regs");
             } else {
-                printf("%7s", "" );
+                printf("%-8s ", "-");
             }
-            if (BTST(regs_modified,c)) {
-                printf("%7s", "mod" );
+            if (BTST(regs_modified, c)) {
+                printf("%-8s ", "mod");
             } else {
-                printf("%7s", "" );
+                printf("%-8s ", "-");
+            }
+            if (regscratch[c]) {
+                printf("%-8s ", "scratch");
+            } else {
+                printf("%-8s ", "-");
             }
             printf("\n");
         }

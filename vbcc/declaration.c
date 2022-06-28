@@ -3520,8 +3520,6 @@ void var_declaration(void)
         
 				gen_code(out, first_ic, v, max_offset);
 
-        dumpreg();
-
 				static_stack_check(v);
 				v->flags |= GENERATED;
 #ifdef HAVE_REGS_MODIFIED
