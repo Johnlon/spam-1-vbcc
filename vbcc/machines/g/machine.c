@@ -383,7 +383,8 @@ static long real_offset(struct obj *o) {
         //off = localsize + rsavesize + 4 - off - zm2l(maxalign);
 //        off = localsize + rsavesize - off - zm2l(maxalign);
 
-        off = -off + localsize + rsavesize;
+        // SP is always one byte below last byte pushed (ie points to where to write next) so add 1 to the offset to 'undo' that SP movement
+        off = -off + localsize + rsavesize + 1;
 //        fprintf(stderr, "real offset -ve off now %ld  localsise %ld rsavesize %ld maxalign %ld\n", off, localsize, rsavesize, maxalign);
     }
 
@@ -436,7 +437,7 @@ static void load_address(FILE *f, int targ, struct obj *o, int type)
     if (o->v->storage_class == AUTO || o->v->storage_class == REGISTER) {
         long offset = real_offset(o);
         //         DUMP q1 < VAR( storage:auto:0(sp) ) > 'value'
-        // address is the SP + the offset so make that calc
+        // address is the (SP + the offset) so make that calc
         emit(f, "\t[:%s+0] = MARLO + (> %d) _S\n", regnames[targ], offset);
         emit(f, "\t[:%s+1] = MARHI A_PLUS_B_PLUS_C (< %d)\n", regnames[targ], offset);
         emit(f, "\t[:%s+2] = 0\n", regnames[targ]);
@@ -984,11 +985,11 @@ static void function_top(FILE *f, struct Var *v, long offset) {
             }
             int pos = 0;
             while (pos < pushSz) {
+                emit(f, "\tREGA  = [:%s+%d]\n", regnames[i], pushSz - pos - 1);
+                emit(f, "\tRAM   = REGA\n");
                 emit(f, "\tMARLO = MARLO - 1 _S\n");
                 emit(f, "\tMARHI = MARHI A_MINUS_B_MINUS_C 0\n");
 
-                emit(f, "\tREGA  = [:%s+%d]\n", regnames[i], pushSz - pos - 1);
-                emit(f, "\tRAM   = REGA\n");
                 pos++;
             }
 
@@ -1019,7 +1020,7 @@ static void function_bottom(FILE *f, struct Var *v, long offset) {
         // go in reverse
         for (int i = MAXR-1; i > 0; i--) {
             if (shouldPreserve(i)) {
-                emit(f, "\t; restoring register %s\n", regnames[i]);
+                emit(f, "\t;   restoring register %s by popping\n", regnames[i]);
                 int popSz = regsize[i];
                 if (popSz != 4) {
                     fprintf(stderr, "JL NOTE - For now only popping 4 byte regs - easier to understand stack\n");
@@ -1027,11 +1028,10 @@ static void function_bottom(FILE *f, struct Var *v, long offset) {
                 }
                 int pos = 0;
                 while (pos < popSz) {
-                    emit(f, "\tREGA = RAM\n");
-                    emit(f, "\t[:%s+%d] = REGA\n", regnames[i], pos);
-
                     emit(f, "\tMARLO = MARLO + 1 _S\n");
                     emit(f, "\tMARHI = MARHI A_PLUS_B_PLUS_C 0\n");
+                    emit(f, "\tREGA = RAM\n");
+                    emit(f, "\t[:%s+%d] = REGA\n", regnames[i], pos);
                     pos++;
                 }
             }
@@ -1047,13 +1047,13 @@ static void function_bottom(FILE *f, struct Var *v, long offset) {
         emit(f, "\t; do return from function\n");
 
         emit(f, "\t; pop PCHITMP\n");
+        emit(f, "\tMARLO   = MARLO + 1 _S\n");
+        emit(f, "\tMARHI   = MARHI A_PLUS_B_PLUS_C 0\n");
         emit(f, "\tPCHITMP = RAM\n");
-        emit(f, "\tMARLO   = MARLO + 1 _S\n");
-        emit(f, "\tMARHI   = MARHI A_PLUS_B_PLUS_C 0\n");
         emit(f, "\t; pop PC\n");
-        emit(f, "\tREGA    = RAM\n");
         emit(f, "\tMARLO   = MARLO + 1 _S\n");
         emit(f, "\tMARHI   = MARHI A_PLUS_B_PLUS_C 0\n");
+        emit(f, "\tREGA    = RAM\n");
         emit(f, "\t; pop 2 unused PC byes\n");
         emit(f, "\tMARLO   = MARLO + 2 _S\n");
         emit(f, "\tMARHI   = MARHI A_PLUS_B_PLUS_C 0\n");
@@ -1935,15 +1935,15 @@ void gc_branch_conditional(FILE *f, struct IC *p) {
 
     if (flag != 0) {
         emit(f, "\tPCHITMP = <:%s%d\n", labprefix, t);
-        emit(f, "\tPCLO    = >:%s%d %s\n", labprefix, t, flag);
+        emit(f, "\tPC      = >:%s%d %s\n", labprefix, t, flag);
     } else if (c == BGE) {
         emit(f, "\tPCHITMP = <:%s%d\n", labprefix, t);
-        emit(f, "\tPCLO    = >:%s%d _GT\n", labprefix, t);
-        emit(f, "\tPCLO    = >:%s%d _EQ\n", labprefix, t);
+        emit(f, "\tPC      = >:%s%d _GT\n", labprefix, t);
+        emit(f, "\tPC      = >:%s%d _EQ\n", labprefix, t);
     } else if (c == BLE) {
         emit(f, "\tPCHITMP = <:%s%d\n", labprefix, t);
-        emit(f, "\tPCLO    = >:%s%d _LT\n", labprefix, t);
-        emit(f, "\tPCLO    = >:%s%d _EQ\n", labprefix, t);
+        emit(f, "\tPC      = >:%s%d _LT\n", labprefix, t);
+        emit(f, "\tPC      = >:%s%d _EQ\n", labprefix, t);
     } else {
         printf("ILLEGAL BRANCH COMMAND %d\n", c);
         ierror(0);
@@ -2114,12 +2114,13 @@ void gc_push(FILE *f, struct IC *p) {
 
         int pos = 0;
         while (pos < pushSz) {
-            emit(f, "\tMARLO = MARLO - 1 _S\n");
-            emit(f, "\tMARHI = MARHI A_MINUS_B_MINUS_C 0\n");
-
             // push so that high order bytes are higher in memory so that we keep to little endian for bytes everywhere
             int konstByte = BYTE(extractByte(&p->q1.val, q1typ(p), pushSz - pos - 1));
             emit(f, "\tRAM = $%02x\n", konstByte);
+
+            emit(f, "\tMARLO = MARLO - 1 _S\n");
+            emit(f, "\tMARHI = MARHI A_MINUS_B_MINUS_C 0\n");
+
             pos++;
         }
 
@@ -2132,12 +2133,13 @@ void gc_push(FILE *f, struct IC *p) {
 
         int pos = 0;
         while (pos < pushSz) {
-            emit(f, "\tMARLO = MARLO - 1 _S\n");
-            emit(f, "\tMARHI = MARHI A_MINUS_B_MINUS_C 0\n");
-
             // push so that high order bytes are higher in memory so that we keep to little endian for bytes everywhere
             emit(f, "\tREGA = [:%s+%d]\n", regnames[p->q1.reg], pushSz - pos - 1);
             emit(f, "\tRAM = REGA\n");
+
+            emit(f, "\tMARLO = MARLO - 1 _S\n");
+            emit(f, "\tMARHI = MARHI A_MINUS_B_MINUS_C 0\n");
+
             pos++;
         }
 
@@ -2277,7 +2279,7 @@ void gc_bra(FILE *f, struct IC *p) {
     int t = p->typf;
     emit(f, "; BRA %s%d\n", labprefix, t);
     emit(f, "\tPCHITMP = <:%s%d\n", labprefix, t);
-    emit(f, "\tPCLO    = >:%s%d\n", labprefix, t);
+    emit(f, "\tPC      = >:%s%d\n", labprefix, t);
 }
 
 /*
@@ -2350,13 +2352,13 @@ void gc_call(FILE *f, struct IC *p) {
         emit(f, "\tMARLO = MARLO - 2 _S\n");
         emit(f, "\tMARHI = MARHI A_MINUS_B_MINUS_C 0\n");
         emit(f, "\t; push return lo\n");
-        emit(f, "\tMARLO = MARLO - 1 _S\n");
-        emit(f, "\tMARHI = MARHI A_MINUS_B_MINUS_C 0\n");
         emit(f, "\tRAM = (>:%s)\n", returnLabel);
-        emit(f, "\t; push return hi\n");
         emit(f, "\tMARLO = MARLO - 1 _S\n");
         emit(f, "\tMARHI = MARHI A_MINUS_B_MINUS_C 0\n");
+        emit(f, "\t; push return hi\n");
         emit(f, "\tRAM = (<:%s)\n", returnLabel);
+        emit(f, "\tMARLO = MARLO - 1 _S\n");
+        emit(f, "\tMARHI = MARHI A_MINUS_B_MINUS_C 0\n");
 
         char *id = p->q1.v->identifier;
         if (id == NULL) {
