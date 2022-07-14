@@ -2305,11 +2305,17 @@ Conversions between floating point and pointers do not occur, neither do convers
  */
 void gc_convert(FILE *f, struct IC *p) {
     emit(f, "; CONVERT   z <- q1\n");
-    ierror(1);
 
     int zreg = zReg(p);
 
-    if (ISFLOAT(q1typ(p)) || ISFLOAT(ztyp(p))) ierror(0);
+    if (ISFLOAT(q1typ(p)) || ISFLOAT(ztyp(p))) {
+        fprintf(stderr, "CONVERT involving float not supported");
+        ierror(0);
+    }
+    if (!ISINT(q1typ(p)) || !ISINT(ztyp(p))) {
+        fprintf(stderr, "CONVERT only supports int types");
+        ierror(0);
+    }
 
     // if source type is smaller than targ type
     if (sizetab[q1typ(p) & NQ] < sizetab[ztyp(p) & NQ]) {
