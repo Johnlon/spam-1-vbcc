@@ -11,3 +11,7 @@
 .project
 .vs
 .vscode
+*.ic1
+*.ic2
+*.asm
+*.out
